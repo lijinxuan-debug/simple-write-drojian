@@ -1,14 +1,22 @@
-package com.example.accounting
+package com.example.accounting.ui
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.text.Editable
-import android.text.TextWatcher
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
+import com.example.accounting.R
 import com.example.accounting.databinding.ActivityRegisterBinding
 import com.example.accounting.util.SmartRedis
 
@@ -30,7 +38,8 @@ class RegisterActivity : AppCompatActivity() {
             }
             append(getString(R.string.account))
         }
-        // 邮箱、验证码、密码进行实时监测
+
+        // 邮箱、验证码、密码进行实时监测光标
         emailValid()
         verifyValid()
         passwordValid()
@@ -38,55 +47,50 @@ class RegisterActivity : AppCompatActivity() {
         // 获取验证码
         binding.gainVerify.setOnClickListener { gainVerify() }
 
+        // 最后输入密码后直接点击软键盘
+        binding.password.setOnEditorActionListener { v, actionId, event ->
+            // 判断点击的是否是“完成”动作
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                // 调用注册方法
+                registerValid()
+
+                true
+            } else {
+                false
+            }
+        }
+
         // 注册时检测是否有误
         binding.registerLoginBtn.setOnClickListener {registerValid()}
     }
 
     private fun passwordValid() {
-        binding.password.addTextChangedListener(object : TextWatcher{
-            override fun afterTextChanged(s: Editable?) {}
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+        binding.password.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
                 binding.passwordLayout.error = null
             }
-        })
+        }
     }
 
     private fun verifyValid() {
-        binding.verificationCode.addTextChangedListener(object : TextWatcher{
-            override fun afterTextChanged(s: Editable?) {}
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+        binding.verificationCode.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
                 binding.verificationCodeLayout.error = null
             }
-        })
+        }
     }
 
     private fun emailValid() {
-        binding.email.addTextChangedListener(object : TextWatcher{
-            override fun afterTextChanged(s: Editable?) {}
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                // 1. 只要一动，立刻清除红色报错
+        binding.email.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
                 binding.emailLayout.error = null
-
-                // 实时检查是否包含非法字符（如中文或特殊符号）
-                val input = s.toString()
-                if (input.any { it.isWhitespace() }) {
-                    binding.emailLayout.error = "邮箱不能包含空格"
-                }
             }
-        })
+        }
     }
 
     private fun gainVerify() {
-        // 暂时使用hashmap存储
+        binding.root.requestFocus()
+
         val email = binding.email.text.toString().trim()
 
         // 先简单校验邮箱格式（之前写的正则）
@@ -100,7 +104,8 @@ class RegisterActivity : AppCompatActivity() {
         SmartRedis.set(email, code, 30) // 存入 30 秒有效
 
         // 模拟发送
-        Toast.makeText(this, "验证码已发送：$code", Toast.LENGTH_LONG).show()
+//        Toast.makeText(this, "验证码已发送：$code", Toast.LENGTH_LONG).show()
+        sendVerifyNotification(code)
 
         // 启动倒计时
         startCountDown()
@@ -128,6 +133,9 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun registerValid() {
+        // 失去所有焦点
+        binding.root.requestFocus()
+
         val email = binding.email.text.toString()
         val verify = binding.verificationCode.text.toString()
         val password = binding.password.text.toString()
@@ -162,9 +170,47 @@ class RegisterActivity : AppCompatActivity() {
 
         if (logo) return
 
-        // TODO
+        // TODO 数据库操作
 
         Toast.makeText(this,"注册成功，已跳转至主页", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun sendVerifyNotification(code: String) {
+        val channelId = "verify_channel"
+        val notificationId = System.currentTimeMillis().toInt()
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+        // 1. Android 8.0+ 必须创建通知渠道
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "验证码通知",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "用于接收单机版模拟验证码"
+            }
+            manager.createNotificationChannel(channel)
+        }
+
+        // 弹出权限通知栏
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                // 弹出系统权限请求对话框
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
+
+        // 2. 构建通知内容
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // 记得换成你的 App 图标
+            .setContentTitle("验证码服务")
+            .setContentText("您的验证码是：$code，请在30秒内输入。")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true) // 点击后自动消失
+
+        // 3. 发送
+        manager.notify(notificationId, builder.build())
     }
 
     override fun onDestroy() {

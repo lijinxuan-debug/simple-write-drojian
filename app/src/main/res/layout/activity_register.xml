@@ -6,7 +6,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/yellow_beige"
-    tools:context=".RegisterActivity">
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    tools:context=".ui.RegisterActivity">
 
     <TextView
         android:id="@+id/register_title"
@@ -58,7 +60,6 @@
             android:singleLine="true"
             android:textColorHint="#888888"
             android:textSize="18sp"
-            android:textCursorDrawable="@color/purple_cursor"
             />
 
     </com.google.android.material.textfield.TextInputLayout>
@@ -146,6 +147,7 @@
             android:layout_height="54dp"
             android:hint="@string/password"
             android:inputType="textPassword"
+            android:imeOptions="actionDone"
             android:paddingStart="20dp"
             android:singleLine="true"
             android:textSize="18sp"
