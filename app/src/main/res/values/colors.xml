@@ -4,4 +4,9 @@
     <color name="white">#FFFFFFFF</color>
     <color name="yellow_beige">#FFF6E9</color>
     <color name="purple_cursor">#6200EE</color>
+    <color name="bill_add">#F8C582</color>
+    <color name="revenue_green">#4DB6AC</color>
+    <color name="expenditure_red">#F44336</color>
+    <color name="shallow_gray">#EEEEEE</color>
+    <color name="deep_gray">#CCCCCC</color>
 </resources>

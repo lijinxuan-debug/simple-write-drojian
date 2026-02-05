@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.ManuallyActivity">
+
+    <View
+        android:id="@+id/view_header_bg"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:background="@drawable/bill_background"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="40dp"
+
+        android:background="@android:color/transparent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerVertical="true"
+            android:contentDescription="@string/return_page"
+
+            android:padding="8dp"
+            android:src="@drawable/ic_back" />
+
+        <TextView
+            android:id="@+id/iv_text_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/iv_back"
+            android:text="@string/return_page"
+
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/top_tab_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true"
+
+            android:background="@android:color/transparent"
+            app:tabIndicatorColor="@color/white"
+            app:tabIndicatorFullWidth="false"
+            app:tabIndicatorHeight="3dp"
+
+            app:tabMode="fixed"
+            app:tabRippleColor="@android:color/transparent"
+            app:tabSelectedTextColor="@color/white"
+            app:tabTextAppearance="@style/NavTextNormal"
+
+            app:tabTextColor="#999999">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/expenditure" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/revenue" />
+
+        </com.google.android.material.tabs.TabLayout>
+
+        <TextView
+            android:id="@+id/tv_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="16dp"
+            android:text="@string/save"
+            android:textColor="@color/white"
+            android:textSize="18sp" />
+
+    </RelativeLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_amount_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingHorizontal="20dp"
+
+        android:paddingTop="10dp"
+        android:paddingBottom="5dp"
+        app:layout_constraintTop_toBottomOf="@id/view_header_bg">
+
+        <TextView
+            android:id="@+id/tv_unit_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#F2F2F2"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"
+            android:textColor="#999999"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_amount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+
+            android:maxLines="1"
+            android:text="@string/init_amount"
+            android:textColor="@color/revenue_green"
+            android:textSize="35sp"
+
+            android:textStyle="bold"
+
+            app:layout_constraintEnd_toStartOf="@+id/ll_camera"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_unit_hint" />
+
+        <HorizontalScrollView
+            android:id="@+id/hsv_calculation"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fadingEdgeLength="30dp"
+            android:overScrollMode="never"
+
+            android:requiresFadingEdge="horizontal"
+            android:scrollbars="none"
+
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_amount">
+
+            <TextView
+                android:id="@+id/tv_calculation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:paddingEnd="16dp"
+                android:textColor="#BBBBBB"
+                android:textSize="14sp" />
+
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:id="@+id/ll_camera"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="#F5F5F5"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@id/tv_calculation"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_unit_hint">
+
+            <LinearLayout
+                android:id="@+id/ll_camera_default"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:contentDescription="@string/camera"
+                    android:src="@drawable/ic_camera_custom"
+                    app:tint="#555555" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/camera"
+                    android:textColor="#999999"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/iv_preview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <View
+            android:id="@+id/line_amount"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/revenue_green"
+            app:layout_constraintTop_toBottomOf="@id/hsv_calculation" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/ll_keyboard_wrapper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+
+        android:orientation="vertical"
+
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/btn_hide_keyboard"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:background="#F2F2F2"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/drop_down"
+                android:src="@drawable/ic_arrow_bottom"
+                app:tint="#999999" />
+        </LinearLayout>
+
+        <GridLayout
+            android:id="@+id/calculator_keyboard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#F2F2F2"
+            android:columnCount="4"
+            android:padding="2dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/button1"
+                style="@style/CalcButton"
+                android:text="@string/btn_1" />
+
+            <TextView
+                android:id="@+id/button2"
+                style="@style/CalcButton"
+                android:text="@string/btn_2" />
+
+            <TextView
+                android:id="@+id/button3"
+                style="@style/CalcButton"
+                android:text="@string/btn_3" />
+
+            <TextView
+                android:id="@+id/buttonClear"
+                style="@style/CalcButton"
+                android:text="@string/btn_c"
+                android:textColor="#E0A36B" />
+
+            <TextView
+                android:id="@+id/button4"
+                style="@style/CalcButton"
+                android:text="@string/btn_4" />
+
+            <TextView
+                android:id="@+id/button5"
+                style="@style/CalcButton"
+                android:text="@string/btn_5" />
+
+            <TextView
+                android:id="@+id/button6"
+                style="@style/CalcButton"
+                android:text="@string/btn_6" />
+
+            <TextView
+                android:id="@+id/buttonMinus"
+                style="@style/CalcButton"
+                android:text="@string/btn_sub"
+                android:textColor="#E0A36B" />
+
+            <TextView
+                android:id="@+id/button7"
+                style="@style/CalcButton"
+                android:text="@string/btn_7" />
+
+            <TextView
+                android:id="@+id/button8"
+                style="@style/CalcButton"
+                android:text="@string/btn_8" />
+
+            <TextView
+                android:id="@+id/button9"
+                style="@style/CalcButton"
+                android:text="@string/btn_9" />
+
+            <TextView
+                android:id="@+id/buttonPlus"
+                style="@style/CalcButton"
+                android:text="@string/btn_add"
+                android:textColor="#E0A36B" />
+
+            <TextView
+                android:id="@+id/buttonPoint"
+                style="@style/CalcButton"
+                android:text="@string/btn_dot" />
+
+            <TextView
+                android:id="@+id/button0"
+                style="@style/CalcButton"
+                android:text="@string/btn_0" />
+
+            <ImageView
+                android:id="@+id/backspace"
+                style="@style/CalcButtonIcon"
+                android:contentDescription="@string/return_page"
+                android:src="@drawable/ic_backspace" />
+
+            <TextView
+                android:id="@+id/btnDone"
+                style="@style/CalcButton"
+                android:backgroundTint="#F8C582"
+                android:text="@string/success"
+                android:textColor="@color/white" />
+
+        </GridLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

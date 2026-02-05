@@ -18,7 +18,7 @@ import androidx.core.text.buildSpannedString
 import androidx.core.text.color
 import com.example.accounting.R
 import com.example.accounting.databinding.ActivityRegisterBinding
-import com.example.accounting.util.SmartRedis
+import com.example.accounting.utils.SmartRedis
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
@@ -104,7 +104,6 @@ class RegisterActivity : AppCompatActivity() {
         SmartRedis.set(email, code, 30) // 存入 30 秒有效
 
         // 模拟发送
-//        Toast.makeText(this, "验证码已发送：$code", Toast.LENGTH_LONG).show()
         sendVerifyNotification(code)
 
         // 启动倒计时
@@ -170,7 +169,7 @@ class RegisterActivity : AppCompatActivity() {
 
         if (logo) return
 
-        // TODO 数据库操作
+        // TODO 数据库操作存储注册用户
 
         Toast.makeText(this,"注册成功，已跳转至主页", Toast.LENGTH_SHORT).show()
     }
@@ -203,7 +202,7 @@ class RegisterActivity : AppCompatActivity() {
 
         // 2. 构建通知内容
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // 记得换成你的 App 图标
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("验证码服务")
             .setContentText("您的验证码是：$code，请在30秒内输入。")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
