@@ -2,12 +2,10 @@ package com.example.accounting.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.accounting.R
@@ -15,9 +13,14 @@ import com.example.accounting.databinding.ActivityManuallyBinding
 import com.example.accounting.engine.CalculatorEngine
 import com.example.accounting.utils.CalcUtils
 import androidx.core.view.isGone
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.example.accounting.adapter.CategoryGroupAdapter
+import com.example.accounting.data.model.CategoryGroup
+import com.example.accounting.data.model.CategoryItem
+import com.example.accounting.databinding.LayoutCategoryBottomSheetBinding
 import com.example.accounting.databinding.LayoutDialogCameraBinding
 import com.example.accounting.engine.GlideEngine
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -29,10 +32,60 @@ import com.luck.picture.lib.config.SelectModeConfig
 import com.luck.picture.lib.entity.LocalMedia
 import com.luck.picture.lib.interfaces.OnExternalPreviewEventListener
 import com.luck.picture.lib.interfaces.OnResultCallbackListener
-import java.io.File
 import kotlin.math.abs
 
 class ManuallyActivity : AppCompatActivity() {
+    private val expenseCategories = listOf(
+        CategoryGroup(1, "货品材料", listOf(
+            CategoryItem(101, "货品材料", "进货支出", R.drawable.ic_buy),
+            CategoryItem(102, "货品材料", "包装耗材", R.drawable.ic_box)
+        )),
+//        CategoryGroup(2, "人工支出", listOf(
+//            CategoryItem(201, "人工支出", "员工工资", R.drawable.ic_salary),
+//            CategoryItem(202, "人工支出", "员工提成", R.drawable.ic_bonus),
+//            CategoryItem(203, "人工支出", "员工福利", R.drawable.ic_welfare),
+//            CategoryItem(204, "人工支出", "员工社保", R.drawable.ic_insurance)
+//        )),
+//        CategoryGroup(3, "运营费用", listOf(
+//            CategoryItem(301, "运营费用", "房租", R.drawable.ic_rent),
+//            CategoryItem(302, "运营费用", "水电煤气", R.drawable.ic_water),
+//            CategoryItem(303, "运营费用", "物业管理费", R.drawable.ic_property),
+//            CategoryItem(304, "运营费用", "日用饮食", R.drawable.ic_food),
+//            CategoryItem(305, "运营费用", "办公用品", R.drawable.ic_office),
+//            CategoryItem(306, "运营费用", "快递运输费", R.drawable.ic_express),
+//            CategoryItem(307, "运营费用", "通信费", R.drawable.ic_phone),
+//            CategoryItem(308, "运营费用", "交通费", R.drawable.ic_car),
+//            CategoryItem(309, "运营费用", "油费", R.drawable.ic_oil),
+//            CategoryItem(310, "运营费用", "差旅费", R.drawable.ic_travel),
+//            CategoryItem(311, "运营费用", "招待费", R.drawable.ic_host),
+//            CategoryItem(312, "运营费用", "运营杂费", R.drawable.ic_others)
+//        )),
+//        CategoryGroup(4, "固定资产", listOf(
+//            CategoryItem(401, "固定资产", "办公设备", R.drawable.ic_device),
+//            CategoryItem(402, "固定资产", "购车费", R.drawable.ic_buy_car),
+//            CategoryItem(403, "固定资产", "房产", R.drawable.ic_house)
+//        )),
+//        CategoryGroup(5, "财务费用", listOf(
+//            CategoryItem(501, "财务费用", "做账报税", R.drawable.ic_tax_service),
+//            CategoryItem(502, "财务费用", "税费", R.drawable.ic_tax),
+//            CategoryItem(503, "财务费用", "发票", R.drawable.ic_invoice)
+//        )),
+//        CategoryGroup(6, "推广费用", listOf(
+//            CategoryItem(601, "推广费用", "广告费用", R.drawable.ic_ad_cost),
+//            CategoryItem(602, "推广费用", "平台推广", R.drawable.ic_platform),
+//            CategoryItem(603, "推广费用", "推广活动", R.drawable.ic_activity),
+//            CategoryItem(604, "推广费用", "广告费", R.drawable.ic_ad)
+//        )),
+//        CategoryGroup(7, "股东支出", listOf(
+//            CategoryItem(701, "股东支出", "股东分红", R.drawable.ic_dividend),
+//            CategoryItem(702, "股东支出", "股东福利", R.drawable.ic_shareholder_welfare)
+//        )),
+//        CategoryGroup(8, "其他杂项", listOf(
+//            CategoryItem(801, "其他杂项", "烂账损失", R.drawable.ic_bad_debt),
+//            CategoryItem(802, "其他杂项", "赔偿罚款", R.drawable.ic_fine),
+//            CategoryItem(803, "其他杂项", "其他支出", R.drawable.ic_more_expense)
+//        ))
+    )
 
     private var imageSelectList = ArrayList<LocalMedia>()
     private lateinit var binding: ActivityManuallyBinding
@@ -96,6 +149,40 @@ class ManuallyActivity : AppCompatActivity() {
                     .startActivityPreview(0, true, imageSelectList)
             }
         }
+
+        binding.llCategoryRow.setOnClickListener {
+            showCategoryDialog()
+        }
+    }
+
+    private fun showCategoryDialog() {
+        // 创建 BottomSheetDialog 并应用圆角主题
+        val bottomSheetDialog = BottomSheetDialog(this, R.style.TransparentBottomSheetStyle)
+
+        // 加载指定的xml，因为可能要使用相应布局的方法
+        val sheetBinding = LayoutCategoryBottomSheetBinding.inflate(layoutInflater)
+
+        sheetBinding.rvCategoryGroups.apply {
+            layoutManager = LinearLayoutManager(this@ManuallyActivity)
+
+            // 【核心相连点】：给它装上你写好的 CategoryGroupAdapter
+            // 注意这里的第二个参数是一个 Lambda 表达式，它就是“点击回调”
+            adapter = CategoryGroupAdapter(expenseCategories) { selectedItem ->
+
+                // 1. 更新主界面的文字显示为选中的分类名 (例如：进货支出)
+                binding.tvCategoryName.text = "${selectedItem.groupName} -> ${selectedItem.name}"
+
+                // 3. 选完之后，关闭弹窗
+                bottomSheetDialog.dismiss()
+
+                // 4. (提示) 这里你可以记录下这个选中的对象，方便最后点“确定”时保存到数据库
+                // currentCategory = selectedItem
+            }
+        }
+
+        // 设置弹窗内容并显示
+        bottomSheetDialog.setContentView(sheetBinding.root)
+        bottomSheetDialog.show()
     }
 
     // 辅助方法：更新主界面缩略图
