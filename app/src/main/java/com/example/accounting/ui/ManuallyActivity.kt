@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
@@ -17,13 +18,18 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.example.accounting.adapter.AccountGroupAdapter
 import com.example.accounting.adapter.CategoryGroupAdapter
+import com.example.accounting.data.model.AccountGroup
+import com.example.accounting.data.model.AccountItem
 import com.example.accounting.data.model.CategoryGroup
 import com.example.accounting.data.model.CategoryItem
+import com.example.accounting.databinding.LayoutAccountBottomSheetBinding
 import com.example.accounting.databinding.LayoutCategoryBottomSheetBinding
 import com.example.accounting.databinding.LayoutDialogCameraBinding
 import com.example.accounting.engine.GlideEngine
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.tabs.TabLayout
 import com.luck.picture.lib.basic.PictureSelector
 import com.luck.picture.lib.config.PictureMimeType
@@ -32,14 +38,28 @@ import com.luck.picture.lib.config.SelectModeConfig
 import com.luck.picture.lib.entity.LocalMedia
 import com.luck.picture.lib.interfaces.OnExternalPreviewEventListener
 import com.luck.picture.lib.interfaces.OnResultCallbackListener
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlin.math.abs
 
 class ManuallyActivity : AppCompatActivity() {
+
+    // 默认设置今天
+    private var selectedDateMillis: Long = System.currentTimeMillis()
+
+    private val dateFormatter = DateTimeFormatter.ofPattern("M月d日", Locale.getDefault())
+    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.getDefault())
     private val expenseCategories = listOf(
-        CategoryGroup(1, "货品材料", listOf(
-            CategoryItem(101, "货品材料", "进货支出", R.drawable.ic_buy),
-            CategoryItem(102, "货品材料", "包装耗材", R.drawable.ic_box)
-        )),
+        CategoryGroup(
+            1, "货品材料", listOf(
+                CategoryItem(101, "货品材料", "进货支出", R.drawable.ic_buy),
+                CategoryItem(102, "货品材料", "包装耗材", R.drawable.ic_box)
+            )
+        ),
 //        CategoryGroup(2, "人工支出", listOf(
 //            CategoryItem(201, "人工支出", "员工工资", R.drawable.ic_salary),
 //            CategoryItem(202, "人工支出", "员工提成", R.drawable.ic_bonus),
@@ -84,6 +104,30 @@ class ManuallyActivity : AppCompatActivity() {
 //            CategoryItem(801, "其他杂项", "烂账损失", R.drawable.ic_bad_debt),
 //            CategoryItem(802, "其他杂项", "赔偿罚款", R.drawable.ic_fine),
 //            CategoryItem(803, "其他杂项", "其他支出", R.drawable.ic_more_expense)
+//        ))
+    )
+
+    private val accountGroups = listOf(
+        AccountGroup(
+            1, "现金账户", listOf(
+                AccountItem(101, "现金账户", "现金账户", R.drawable.ic_cash)
+            )
+        ),
+//        AccountGroup(2, "储蓄账户", listOf(
+//            AccountItem(201, "储蓄账户", "银行卡", R.drawable.ic_bank_card)
+//        )),
+//        AccountGroup(3, "虚拟账户", listOf(
+//            AccountItem(301, "虚拟账户", "支付宝", R.drawable.ic_alipay),
+//            AccountItem(302, "虚拟账户", "微信钱包", R.drawable.ic_wechat_pay)
+//        )),
+//        AccountGroup(4, "债权账户", listOf(
+//            AccountItem(401, "债权账户", "客户应收款", R.drawable.ic_receivable)
+//        )),
+//        AccountGroup(5, "信用账户", listOf(
+//            AccountItem(501, "信用账户", "信用卡", R.drawable.ic_credit_card)
+//        )),
+//        AccountGroup(6, "负债账户", listOf(
+//            AccountItem(601, "负债账户", "供应商应付款", R.drawable.ic_payable)
 //        ))
     )
 
@@ -150,9 +194,56 @@ class ManuallyActivity : AppCompatActivity() {
             }
         }
 
+        // 监听点击分类按钮
         binding.llCategoryRow.setOnClickListener {
             showCategoryDialog()
         }
+
+        // 监听点击账户按钮
+        binding.llAccountRow.setOnClickListener {
+            initAccountSelection()
+        }
+
+        // 监听点击事件按钮逻辑
+        binding.llTimeRow.setOnClickListener {
+            showDatePicker()
+        }
+
+        // 监听备注输入
+        binding.llRemarkRow.setOnClickListener {
+            // 先隐藏计算器
+            hideKeyboardWithAnim()
+            // 聚焦
+            binding.etRemark.requestFocus()
+            // 将光标移到末尾
+            binding.etRemark.setSelection(binding.etRemark.text.length)
+            // 强制弹出软键盘
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etRemark, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+    }
+
+    private fun initAccountSelection() {
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val sheetBinding = LayoutAccountBottomSheetBinding.inflate(layoutInflater)
+        bottomSheetDialog.setContentView(sheetBinding.root)
+
+        val accountAdapter = AccountGroupAdapter(accountGroups) { selectedAccount ->
+            // A. 更新主界面显示的账户名（例如：显示“支付宝”）
+            binding.tvAccountName.text = "${selectedAccount.name}(CNY)"
+
+            // C. 选完关掉弹窗
+            bottomSheetDialog.dismiss()
+        }
+
+        // 配置弹窗里的 RecyclerView
+        sheetBinding.rvCategoryGroups.apply {
+            layoutManager = LinearLayoutManager(this@ManuallyActivity)
+            adapter = accountAdapter
+        }
+
+        bottomSheetDialog.show()
     }
 
     private fun showCategoryDialog() {
@@ -165,8 +256,7 @@ class ManuallyActivity : AppCompatActivity() {
         sheetBinding.rvCategoryGroups.apply {
             layoutManager = LinearLayoutManager(this@ManuallyActivity)
 
-            // 【核心相连点】：给它装上你写好的 CategoryGroupAdapter
-            // 注意这里的第二个参数是一个 Lambda 表达式，它就是“点击回调”
+            // 适配器的回调函数
             adapter = CategoryGroupAdapter(expenseCategories) { selectedItem ->
 
                 // 1. 更新主界面的文字显示为选中的分类名 (例如：进货支出)
@@ -175,8 +265,7 @@ class ManuallyActivity : AppCompatActivity() {
                 // 3. 选完之后，关闭弹窗
                 bottomSheetDialog.dismiss()
 
-                // 4. (提示) 这里你可以记录下这个选中的对象，方便最后点“确定”时保存到数据库
-                // currentCategory = selectedItem
+                // TODO保存到数据库
             }
         }
 
@@ -198,7 +287,8 @@ class ManuallyActivity : AppCompatActivity() {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 // 根据选中的位置判断是支出(0)还是收入(1)
                 val isExpense = tab?.position == 0
-                val targetColor = if (isExpense) getColor(R.color.revenue_green) else getColor(R.color.expenditure_red)
+                val targetColor =
+                    if (isExpense) getColor(R.color.revenue_green) else getColor(R.color.expenditure_red)
 
                 // 一键切换所有相关 UI 颜色
                 updateUIThemeColor(targetColor)
@@ -207,6 +297,53 @@ class ManuallyActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
+    }
+
+    private fun showDatePicker() {
+        // 创建 MaterialDatePicker
+        val datePicker = MaterialDatePicker.Builder.datePicker()
+            .setTitleText("选择账单日期")
+            .setSelection(selectedDateMillis) // 默认选中上一次选中的日期
+            .build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            selectedDateMillis = selection
+            // 使用我们之前写的友好日期逻辑函数
+            binding.tvSelectedTime.text = getFriendlyDate(selection)
+        }
+
+        datePicker.show(supportFragmentManager, "DATE_PICKER_TAG")
+    }
+
+    fun getFriendlyDate(millis: Long): String {
+        // 1. 将毫秒转为 LocalDate (强制使用 UTC，确保不受当地时区偏移干扰)
+        val targetDate = Instant.ofEpochMilli(millis)
+            .atOffset(ZoneOffset.UTC)
+            .toLocalDate()
+
+        // 2. 获取当地的纯日期 (LocalDate.now 本身不带时分秒，非常安全)
+        val today = LocalDate.now()
+
+        // 3. 计算天数差 (ChronoUnit 会处理闰年等逻辑)
+        val diffDays = ChronoUnit.DAYS.between(today, targetDate).toInt()
+
+        // 4. 格式化日期部分 (dateFormatter 和 fullDateFormatter 使用之前定义的)
+        val datePart = targetDate.format(dateFormatter)
+
+        return when (diffDays) {
+            0 -> "今天 $datePart"
+            -1 -> "昨天 $datePart"
+            -2 -> "前天 $datePart"
+            1 -> "明天 $datePart"
+            2 -> "后天 $datePart"
+            else -> {
+                if (targetDate.year == today.year) {
+                    datePart
+                } else {
+                    targetDate.format(fullDateFormatter)
+                }
+            }
+        }
     }
 
     /**
@@ -456,7 +593,12 @@ class ManuallyActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSwitchDialog(title: String, message: String, targetTabPosition: Int, absoluteValue: Double) {
+    private fun showSwitchDialog(
+        title: String,
+        message: String,
+        targetTabPosition: Int,
+        absoluteValue: Double
+    ) {
         // 大金额：1,234.56 (带逗号)
         val displayValue = CalcUtils.formatAmount(absoluteValue)
         // 过程框：1234.56 (无逗号)
