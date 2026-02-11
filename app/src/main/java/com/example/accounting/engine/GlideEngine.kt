@@ -4,8 +4,10 @@ import android.content.Context
 import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.luck.picture.lib.engine.ImageEngine
 import com.luck.picture.lib.utils.ActivityCompatHelper
+import java.io.File
 
 /**
  * PictureSelector 的图片加载引擎适配器
@@ -73,6 +75,21 @@ class GlideEngine private constructor() : ImageEngine {
     // 滑动停止后开始加载
     override fun resumeRequests(context: Context) {
         Glide.with(context).resumeRequests()
+    }
+
+    fun loadImage(context: Context, file: File?, imageView: ImageView) {
+        Glide.with(context)
+            .load(file)
+            .circleCrop()
+            .transition(DrawableTransitionOptions.withCrossFade())
+            .into(imageView)
+    }
+
+    fun loadImage(context: Context, file: Int, imageView: ImageView) {
+        Glide.with(context)
+            .load(file)
+            .circleCrop()
+            .into(imageView)
     }
 
     companion object {

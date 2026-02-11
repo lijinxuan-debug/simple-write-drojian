@@ -3,7 +3,7 @@ package com.example.accounting.utils
 import java.text.DecimalFormat
 import kotlin.math.abs
 
-object CalcUtils {
+object CalcUtil {
 
     private const val MAX_LIMIT = 999999999.99
     private const val BOUNDARY = 1000000000.0

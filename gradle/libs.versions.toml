@@ -12,6 +12,9 @@ constraintlayout = "2.2.1"
 cardview = "1.0.0"
 pictureselector = "v3.11.2"
 glide = "4.15.1"
+fragment = "1.6.1"
+room = "2.6.1"
+ksp = "2.0.21-1.0.27"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -25,8 +28,12 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
 lucksiege-pictureselector = { group = "io.github.lucksiege", name = "pictureselector", version.ref = "pictureselector" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

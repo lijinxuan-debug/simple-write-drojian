@@ -3,6 +3,7 @@ package com.example.accounting.ui
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -16,19 +17,28 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.text.buildSpannedString
 import androidx.core.text.color
+import androidx.lifecycle.ViewModelProvider
+import com.example.accounting.MainActivity
 import com.example.accounting.R
 import com.example.accounting.databinding.ActivityRegisterBinding
 import com.example.accounting.utils.SmartRedis
+import com.example.accounting.utils.SpUtil
+import com.example.accounting.viewmodel.UserViewModel
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
 
     private var countDownTimer: CountDownTimer? = null
 
+    private lateinit var userViewModel: UserViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // 之所以传Class对象是为了节省内存，如果存在则直接复用，不存在可反射创建实例
+        userViewModel = ViewModelProvider(this)[UserViewModel::class.java]
 
         // 渲染标题颜色
         binding.registerTitle.text = buildSpannedString {
@@ -37,6 +47,21 @@ class RegisterActivity : AppCompatActivity() {
                 append(getString(R.string.simple_accounting))
             }
             append(getString(R.string.account))
+        }
+
+        // 注册结果监听
+        userViewModel.registerResult.observe(this) { result ->
+            result.onSuccess { user ->
+                Toast.makeText(this,"登录成功", Toast.LENGTH_SHORT).show()
+                // 同时将当前用户持久化，保证下次自动登录即可
+                SpUtil.saveUserId(this,user.id)
+                // 登录成功直接跳转到主页
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            }.onFailure { e ->
+                Toast.makeText(this,e.message, Toast.LENGTH_SHORT).show()
+            }
         }
 
         // 邮箱、验证码、密码进行实时监测光标
@@ -53,7 +78,6 @@ class RegisterActivity : AppCompatActivity() {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 // 调用注册方法
                 registerValid()
-
                 true
             } else {
                 false
@@ -169,7 +193,8 @@ class RegisterActivity : AppCompatActivity() {
 
         if (logo) return
 
-        // TODO 数据库操作存储注册用户
+        // 注册用户
+        userViewModel.register(email,password)
 
         Toast.makeText(this,"注册成功，已跳转至主页", Toast.LENGTH_SHORT).show()
     }

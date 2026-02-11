@@ -24,7 +24,7 @@
         android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_category_groups"
+        android:id="@+id/rv_account_groups"
         android:layout_width="match_parent"
         android:layout_height="400dp"
         android:overScrollMode="never" />

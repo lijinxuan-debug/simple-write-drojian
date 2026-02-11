@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -52,4 +53,8 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(libs.lucksiege.pictureselector)
     implementation(libs.glide)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 }

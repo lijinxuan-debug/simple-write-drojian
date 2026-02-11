@@ -1,138 +1,27 @@
 package com.example.accounting.ui
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.distinctUntilChanged
 import com.example.accounting.R
+import com.example.accounting.adapter.RecordPagerAdapter
 import com.example.accounting.databinding.ActivityManuallyBinding
 import com.example.accounting.engine.CalculatorEngine
-import com.example.accounting.utils.CalcUtils
-import androidx.core.view.isGone
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.example.accounting.adapter.AccountGroupAdapter
-import com.example.accounting.adapter.CategoryGroupAdapter
-import com.example.accounting.data.model.AccountGroup
-import com.example.accounting.data.model.AccountItem
-import com.example.accounting.data.model.CategoryGroup
-import com.example.accounting.data.model.CategoryItem
-import com.example.accounting.databinding.LayoutAccountBottomSheetBinding
-import com.example.accounting.databinding.LayoutCategoryBottomSheetBinding
-import com.example.accounting.databinding.LayoutDialogCameraBinding
-import com.example.accounting.engine.GlideEngine
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.datepicker.MaterialDatePicker
-import com.google.android.material.tabs.TabLayout
-import com.luck.picture.lib.basic.PictureSelector
-import com.luck.picture.lib.config.PictureMimeType
-import com.luck.picture.lib.config.SelectMimeType
-import com.luck.picture.lib.config.SelectModeConfig
-import com.luck.picture.lib.entity.LocalMedia
-import com.luck.picture.lib.interfaces.OnExternalPreviewEventListener
-import com.luck.picture.lib.interfaces.OnResultCallbackListener
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.util.Locale
+import com.example.accounting.utils.CalcUtil
+import com.example.accounting.viewmodel.BillViewModel
+import com.google.android.material.tabs.TabLayoutMediator
 import kotlin.math.abs
 
 class ManuallyActivity : AppCompatActivity() {
-
-    // 默认设置今天
-    private var selectedDateMillis: Long = System.currentTimeMillis()
-
-    private val dateFormatter = DateTimeFormatter.ofPattern("M月d日", Locale.getDefault())
-    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.getDefault())
-    private val expenseCategories = listOf(
-        CategoryGroup(
-            1, "货品材料", listOf(
-                CategoryItem(101, "货品材料", "进货支出", R.drawable.ic_buy),
-                CategoryItem(102, "货品材料", "包装耗材", R.drawable.ic_box)
-            )
-        ),
-//        CategoryGroup(2, "人工支出", listOf(
-//            CategoryItem(201, "人工支出", "员工工资", R.drawable.ic_salary),
-//            CategoryItem(202, "人工支出", "员工提成", R.drawable.ic_bonus),
-//            CategoryItem(203, "人工支出", "员工福利", R.drawable.ic_welfare),
-//            CategoryItem(204, "人工支出", "员工社保", R.drawable.ic_insurance)
-//        )),
-//        CategoryGroup(3, "运营费用", listOf(
-//            CategoryItem(301, "运营费用", "房租", R.drawable.ic_rent),
-//            CategoryItem(302, "运营费用", "水电煤气", R.drawable.ic_water),
-//            CategoryItem(303, "运营费用", "物业管理费", R.drawable.ic_property),
-//            CategoryItem(304, "运营费用", "日用饮食", R.drawable.ic_food),
-//            CategoryItem(305, "运营费用", "办公用品", R.drawable.ic_office),
-//            CategoryItem(306, "运营费用", "快递运输费", R.drawable.ic_express),
-//            CategoryItem(307, "运营费用", "通信费", R.drawable.ic_phone),
-//            CategoryItem(308, "运营费用", "交通费", R.drawable.ic_car),
-//            CategoryItem(309, "运营费用", "油费", R.drawable.ic_oil),
-//            CategoryItem(310, "运营费用", "差旅费", R.drawable.ic_travel),
-//            CategoryItem(311, "运营费用", "招待费", R.drawable.ic_host),
-//            CategoryItem(312, "运营费用", "运营杂费", R.drawable.ic_others)
-//        )),
-//        CategoryGroup(4, "固定资产", listOf(
-//            CategoryItem(401, "固定资产", "办公设备", R.drawable.ic_device),
-//            CategoryItem(402, "固定资产", "购车费", R.drawable.ic_buy_car),
-//            CategoryItem(403, "固定资产", "房产", R.drawable.ic_house)
-//        )),
-//        CategoryGroup(5, "财务费用", listOf(
-//            CategoryItem(501, "财务费用", "做账报税", R.drawable.ic_tax_service),
-//            CategoryItem(502, "财务费用", "税费", R.drawable.ic_tax),
-//            CategoryItem(503, "财务费用", "发票", R.drawable.ic_invoice)
-//        )),
-//        CategoryGroup(6, "推广费用", listOf(
-//            CategoryItem(601, "推广费用", "广告费用", R.drawable.ic_ad_cost),
-//            CategoryItem(602, "推广费用", "平台推广", R.drawable.ic_platform),
-//            CategoryItem(603, "推广费用", "推广活动", R.drawable.ic_activity),
-//            CategoryItem(604, "推广费用", "广告费", R.drawable.ic_ad)
-//        )),
-//        CategoryGroup(7, "股东支出", listOf(
-//            CategoryItem(701, "股东支出", "股东分红", R.drawable.ic_dividend),
-//            CategoryItem(702, "股东支出", "股东福利", R.drawable.ic_shareholder_welfare)
-//        )),
-//        CategoryGroup(8, "其他杂项", listOf(
-//            CategoryItem(801, "其他杂项", "烂账损失", R.drawable.ic_bad_debt),
-//            CategoryItem(802, "其他杂项", "赔偿罚款", R.drawable.ic_fine),
-//            CategoryItem(803, "其他杂项", "其他支出", R.drawable.ic_more_expense)
-//        ))
-    )
-
-    private val accountGroups = listOf(
-        AccountGroup(
-            1, "现金账户", listOf(
-                AccountItem(101, "现金账户", "现金账户", R.drawable.ic_cash)
-            )
-        ),
-//        AccountGroup(2, "储蓄账户", listOf(
-//            AccountItem(201, "储蓄账户", "银行卡", R.drawable.ic_bank_card)
-//        )),
-//        AccountGroup(3, "虚拟账户", listOf(
-//            AccountItem(301, "虚拟账户", "支付宝", R.drawable.ic_alipay),
-//            AccountItem(302, "虚拟账户", "微信钱包", R.drawable.ic_wechat_pay)
-//        )),
-//        AccountGroup(4, "债权账户", listOf(
-//            AccountItem(401, "债权账户", "客户应收款", R.drawable.ic_receivable)
-//        )),
-//        AccountGroup(5, "信用账户", listOf(
-//            AccountItem(501, "信用账户", "信用卡", R.drawable.ic_credit_card)
-//        )),
-//        AccountGroup(6, "负债账户", listOf(
-//            AccountItem(601, "负债账户", "供应商应付款", R.drawable.ic_payable)
-//        ))
-    )
-
-    private var imageSelectList = ArrayList<LocalMedia>()
     private lateinit var binding: ActivityManuallyBinding
+
+    private val viewModel : BillViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,217 +33,19 @@ class ManuallyActivity : AppCompatActivity() {
         // 初始化并监听所有计算按钮
         initCalculatorButton()
 
-        // 监听导航栏
-        initTabListener()
+        // 这里的适配器指的是固定的数据
+        val adapter = RecordPagerAdapter(this)
+        binding.mainViewPager.adapter = adapter
+
+        TabLayoutMediator(binding.topTabLayout, binding.mainViewPager) { tab, position ->
+            tab.text =
+                if (position == 0) getString(R.string.expenditure) else getString(R.string.revenue)
+        }.attach()
 
         // 监听返回按钮
         binding.ivBack.setOnClickListener { finish() }
         binding.ivTextBack.setOnClickListener { finish() }
 
-        // 监听照相按钮
-        binding.llCamera.setOnClickListener {
-            showCameraBottomSheet()
-        }
-
-        // 当选择图片之后显示这个
-        binding.ivPreview.setOnClickListener {
-            // 只有当列表里有图片时才进入预览
-            if (imageSelectList.isNotEmpty()) {
-                PictureSelector.create(this)
-                    .openPreview() // 打开预览模式
-                    .setImageEngine(GlideEngine.createGlideEngine()) // 必须设置图片引擎
-                    .setExternalPreviewEventListener(object : OnExternalPreviewEventListener {
-                        // 【核心：监听预览界面的删除动作】
-                        override fun onPreviewDelete(position: Int) {
-                            // 当用户在预览界面点击“删除”时，同步更新我们本地的全局列表
-                            imageSelectList.removeAt(position)
-
-                            // 检查是否删光了
-                            if (imageSelectList.isEmpty()) {
-                                // 如果图删完了，切换回“加号”状态
-                                binding.ivPreview.visibility = View.GONE
-                                binding.llCameraDefault.visibility = View.VISIBLE
-                            } else {
-                                // 如果还有图，把缩略图更新为剩下的第一张
-                                updateThumbnail(imageSelectList[0].path)
-                            }
-                        }
-
-                        override fun onLongPressDownload(
-                            context: Context?,
-                            media: LocalMedia?
-                        ): Boolean {
-                            // 长按功能暂不设计
-                            return false
-                        }
-
-                    })
-                    // 启动预览：参数分别是 (起始位置, 是否显示删除, 数据源)
-                    .startActivityPreview(0, true, imageSelectList)
-            }
-        }
-
-        // 监听点击分类按钮
-        binding.llCategoryRow.setOnClickListener {
-            showCategoryDialog()
-        }
-
-        // 监听点击账户按钮
-        binding.llAccountRow.setOnClickListener {
-            initAccountSelection()
-        }
-
-        // 监听点击事件按钮逻辑
-        binding.llTimeRow.setOnClickListener {
-            showDatePicker()
-        }
-
-        // 监听备注输入
-        binding.llRemarkRow.setOnClickListener {
-            // 先隐藏计算器
-            hideKeyboardWithAnim()
-            // 聚焦
-            binding.etRemark.requestFocus()
-            // 将光标移到末尾
-            binding.etRemark.setSelection(binding.etRemark.text.length)
-            // 强制弹出软键盘
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(binding.etRemark, InputMethodManager.SHOW_IMPLICIT)
-        }
-
-    }
-
-    private fun initAccountSelection() {
-        val bottomSheetDialog = BottomSheetDialog(this)
-        val sheetBinding = LayoutAccountBottomSheetBinding.inflate(layoutInflater)
-        bottomSheetDialog.setContentView(sheetBinding.root)
-
-        val accountAdapter = AccountGroupAdapter(accountGroups) { selectedAccount ->
-            // A. 更新主界面显示的账户名（例如：显示“支付宝”）
-            binding.tvAccountName.text = "${selectedAccount.name}(CNY)"
-
-            // C. 选完关掉弹窗
-            bottomSheetDialog.dismiss()
-        }
-
-        // 配置弹窗里的 RecyclerView
-        sheetBinding.rvCategoryGroups.apply {
-            layoutManager = LinearLayoutManager(this@ManuallyActivity)
-            adapter = accountAdapter
-        }
-
-        bottomSheetDialog.show()
-    }
-
-    private fun showCategoryDialog() {
-        // 创建 BottomSheetDialog 并应用圆角主题
-        val bottomSheetDialog = BottomSheetDialog(this, R.style.TransparentBottomSheetStyle)
-
-        // 加载指定的xml，因为可能要使用相应布局的方法
-        val sheetBinding = LayoutCategoryBottomSheetBinding.inflate(layoutInflater)
-
-        sheetBinding.rvCategoryGroups.apply {
-            layoutManager = LinearLayoutManager(this@ManuallyActivity)
-
-            // 适配器的回调函数
-            adapter = CategoryGroupAdapter(expenseCategories) { selectedItem ->
-
-                // 1. 更新主界面的文字显示为选中的分类名 (例如：进货支出)
-                binding.tvCategoryName.text = "${selectedItem.groupName} -> ${selectedItem.name}"
-
-                // 3. 选完之后，关闭弹窗
-                bottomSheetDialog.dismiss()
-
-                // TODO保存到数据库
-            }
-        }
-
-        // 设置弹窗内容并显示
-        bottomSheetDialog.setContentView(sheetBinding.root)
-        bottomSheetDialog.show()
-    }
-
-    // 辅助方法：更新主界面缩略图
-    private fun updateThumbnail(path: String) {
-        Glide.with(this)
-            .load(path)
-            .transform(CenterCrop(), RoundedCorners(15))
-            .into(binding.ivPreview)
-    }
-
-    private fun initTabListener() {
-        binding.topTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                // 根据选中的位置判断是支出(0)还是收入(1)
-                val isExpense = tab?.position == 0
-                val targetColor =
-                    if (isExpense) getColor(R.color.revenue_green) else getColor(R.color.expenditure_red)
-
-                // 一键切换所有相关 UI 颜色
-                updateUIThemeColor(targetColor)
-            }
-
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
-    }
-
-    private fun showDatePicker() {
-        // 创建 MaterialDatePicker
-        val datePicker = MaterialDatePicker.Builder.datePicker()
-            .setTitleText("选择账单日期")
-            .setSelection(selectedDateMillis) // 默认选中上一次选中的日期
-            .build()
-
-        datePicker.addOnPositiveButtonClickListener { selection ->
-            selectedDateMillis = selection
-            // 使用我们之前写的友好日期逻辑函数
-            binding.tvSelectedTime.text = getFriendlyDate(selection)
-        }
-
-        datePicker.show(supportFragmentManager, "DATE_PICKER_TAG")
-    }
-
-    fun getFriendlyDate(millis: Long): String {
-        // 1. 将毫秒转为 LocalDate (强制使用 UTC，确保不受当地时区偏移干扰)
-        val targetDate = Instant.ofEpochMilli(millis)
-            .atOffset(ZoneOffset.UTC)
-            .toLocalDate()
-
-        // 2. 获取当地的纯日期 (LocalDate.now 本身不带时分秒，非常安全)
-        val today = LocalDate.now()
-
-        // 3. 计算天数差 (ChronoUnit 会处理闰年等逻辑)
-        val diffDays = ChronoUnit.DAYS.between(today, targetDate).toInt()
-
-        // 4. 格式化日期部分 (dateFormatter 和 fullDateFormatter 使用之前定义的)
-        val datePart = targetDate.format(dateFormatter)
-
-        return when (diffDays) {
-            0 -> "今天 $datePart"
-            -1 -> "昨天 $datePart"
-            -2 -> "前天 $datePart"
-            1 -> "明天 $datePart"
-            2 -> "后天 $datePart"
-            else -> {
-                if (targetDate.year == today.year) {
-                    datePart
-                } else {
-                    targetDate.format(fullDateFormatter)
-                }
-            }
-        }
-    }
-
-    /**
-     * 统一修改所有颜色
-     */
-    private fun updateUIThemeColor(color: Int) {
-        // 金额大数字颜色
-        binding.tvAmount.setTextColor(color)
-
-        // 下划线颜色
-        binding.lineAmount.setBackgroundColor(color)
     }
 
     /**
@@ -366,19 +57,6 @@ class ManuallyActivity : AppCompatActivity() {
             calculateFinalResult()
         }
 
-        // 2. 点击金额显示区域，再次弹出键盘
-        // 假设你的金额区域布局 ID 是 cl_amount_area
-        binding.clAmountArea.setOnClickListener {
-            if (binding.llKeyboardWrapper.isGone) {
-                binding.llKeyboardWrapper.visibility = View.VISIBLE
-                // 显示动画
-                showKeyboardWithAnim()
-                // 同时使得输入横线变粗
-                binding.lineAmount.layoutParams.height = 4.dpToPx()
-                binding.lineAmount.requestLayout()
-            }
-        }
-
         // 定义基础数字和运算符按键映射
         val commonButtons = listOf(
             binding.button0, binding.button1, binding.button2, binding.button3,
@@ -386,6 +64,15 @@ class ManuallyActivity : AppCompatActivity() {
             binding.button8, binding.button9, binding.buttonPoint,
             binding.buttonPlus, binding.buttonMinus
         )
+
+        // 监听键盘状态
+        viewModel.isKeyboardVisible.distinctUntilChanged().observe(this) { isVisible ->
+            if (isVisible) {
+                showKeyboardWithAnim()
+            } else {
+                hideKeyboardWithAnim()
+            }
+        }
 
         // 批量设置点击监听
         commonButtons.forEach { btn ->
@@ -396,19 +83,17 @@ class ManuallyActivity : AppCompatActivity() {
 
         // 2. 清除键 (C)
         binding.buttonClear.setOnClickListener {
-            binding.tvCalculation.text = "" // 清空过程
-            binding.tvAmount.text = getString(R.string.init_amount)  // 重置金额
-            binding.tvUnitHint.visibility = View.INVISIBLE // 清除单位
+            viewModel.updateCalculationExpression("") // 清空过程
+            viewModel.updateAmount(getString(R.string.init_amount))  // 重置金额
+            viewModel.updateUnitHintVisible(false) // 清除单位
         }
 
         // 3. 退格键 (删除图标)
         binding.backspace.setOnClickListener {
-            val current = binding.tvCalculation.text.toString()
+            val current = viewModel.calculationExpression.value ?: ""
             if (current.isNotEmpty()) {
-                binding.tvCalculation.text = current.dropLast(1)
+                viewModel.updateCalculationExpression(current.dropLast(1))
                 tryLivePreview()
-                // 删除后也要保证视野不丢失
-                scrollToBottom()
             }
         }
 
@@ -417,16 +102,6 @@ class ManuallyActivity : AppCompatActivity() {
             calculateFinalResult()
         }
 
-        // 刚开始单位不展示
-        binding.tvUnitHint.visibility = View.INVISIBLE
-
-    }
-
-    private fun scrollToBottom() {
-        // 需要使用 post，因为文字改变后布局刷新需要时间，直接滚动会滚不到位
-        binding.hsvCalculation.post {
-            binding.hsvCalculation.fullScroll(View.FOCUS_RIGHT)
-        }
     }
 
     // 收起键盘的动画函数
@@ -452,7 +127,7 @@ class ManuallyActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun appendToCalcDisplay(str: String) {
-        val current = binding.tvCalculation.text.toString()
+        val current = viewModel.calculationExpression.value!!
         // 只保留加减正则
         val isOperatorRegex = "[+\\-]".toRegex()
         val lastPart = current.split(isOperatorRegex).last()
@@ -472,7 +147,7 @@ class ManuallyActivity : AppCompatActivity() {
         if (str == ".") {
             if (lastPart.contains(".")) return
             if (current.isEmpty() || current.last().toString().matches(isOperatorRegex)) {
-                binding.tvCalculation.text = current + "0."
+                viewModel.updateCalculationExpression(current + "0.")
                 tryLivePreview() // 补0后也要预览
                 return
             }
@@ -489,28 +164,26 @@ class ManuallyActivity : AppCompatActivity() {
             if (current.isEmpty()) return
             // 重复点击切换运算符
             if (current.last().toString().matches(isOperatorRegex)) {
-                binding.tvCalculation.text = current.dropLast(1) + str
+                viewModel.updateCalculationExpression(current.dropLast(1) + str)
                 return
             }
         }
 
-        binding.tvCalculation.text = current + str
+        viewModel.updateCalculationExpression(current + str)
         // 预算结果
         tryLivePreview()
-        // 进行滚动
-        scrollToBottom()
     }
 
     /**
      * 实时预览结果：用户每输入一个数字，上方大金额实时变动
      */
     private fun tryLivePreview() {
-        val expression = binding.tvCalculation.text.toString()
+        val expression = viewModel.calculationExpression.value ?: ""
 
         if (expression.isEmpty()) {
-            binding.tvAmount.text = getString(R.string.init_amount)
+            viewModel.updateAmount(getString(R.string.init_amount))
             // 空的时候隐藏单位
-            binding.tvUnitHint.visibility = View.INVISIBLE
+            viewModel.updateUnitHintVisible(false)
             return
         }
 
@@ -518,15 +191,15 @@ class ManuallyActivity : AppCompatActivity() {
             // 调用计算引擎
             val result = CalculatorEngine.evaluate(expression)
             // 使用格式化工具：千分位 + 两位小数
-            binding.tvAmount.text = CalcUtils.formatAmount(result)
+            viewModel.updateAmount(CalcUtil.formatAmount(result))
 
             // 这里是新增的单位显示逻辑
-            val unit = CalcUtils.getUnitHint(result)
+            val unit = CalcUtil.getUnitHint(result)
             if (unit.isNotEmpty()) {
-                binding.tvUnitHint.text = unit
-                binding.tvUnitHint.visibility = View.VISIBLE
+                viewModel.updateUnitHint(unit)
+                viewModel.updateUnitHintVisible(true)
             } else {
-                binding.tvUnitHint.visibility = View.INVISIBLE
+                viewModel.updateUnitHintVisible(false)
             }
 
         } catch (_: Exception) {
@@ -538,14 +211,10 @@ class ManuallyActivity : AppCompatActivity() {
      * 点击完成：计算结果并清空下方过程
      */
     private fun calculateFinalResult() {
-        binding.llKeyboardWrapper.visibility = View.GONE
         // 消失动画
-        hideKeyboardWithAnim()
-        // 同时输入横线变细
-        binding.lineAmount.layoutParams.height = 1.5f.dpToPx()
-        binding.lineAmount.requestLayout()
+        viewModel.updateKeyboardVisible(false)
 
-        val expression = binding.tvCalculation.text.toString()
+        val expression = viewModel.calculationExpression.value ?: ""
         if (expression.isEmpty()) return
 
         try {
@@ -556,14 +225,12 @@ class ManuallyActivity : AppCompatActivity() {
             } else {
                 // 兜底
                 val finalResult = if (result >= 1000000000.0) 999999999.99 else result
-                binding.tvAmount.text = CalcUtils.formatAmount(finalResult)
+                viewModel.updateAmount(CalcUtil.formatAmount(finalResult))
                 // 计算结束，输入框不能清除，避免后续用户还想计算
-                binding.tvCalculation.text = CalcUtils.formatForCalculation(finalResult)
-                // 将计算器收起
-                hideKeyboardWithAnim()
+                viewModel.updateCalculationExpression(CalcUtil.formatForCalculation(finalResult))
             }
         } catch (_: Exception) {
-            binding.tvAmount.text = getString(R.string.init_amount)
+            viewModel.updateAmount(getString(R.string.init_amount))
         }
     }
 
@@ -571,7 +238,9 @@ class ManuallyActivity : AppCompatActivity() {
      * 核心逻辑：检查结果并弹出转换建议
      */
     private fun checkNegativeResult(result: Double) {
-        val currentTabIsExpense = binding.topTabLayout.selectedTabPosition == 0
+        // 直接用 Fragment 自己的身份标识 pageType
+        // 假设 0 是支出，1 是收入
+        val currentTabIsExpense = viewModel.jumpToPage.value == 0
 
         // 支出出现负数
         if (currentTabIsExpense && result < 0) {
@@ -599,117 +268,29 @@ class ManuallyActivity : AppCompatActivity() {
         targetTabPosition: Int,
         absoluteValue: Double
     ) {
-        // 大金额：1,234.56 (带逗号)
-        val displayValue = CalcUtils.formatAmount(absoluteValue)
-        // 过程框：1234.56 (无逗号)
-        val calculationValue = CalcUtils.formatForCalculation(absoluteValue)
+        // 1. 准备数据：一个是带逗号的展示值，一个是不带逗号的计算值
+        val displayValue = CalcUtil.formatAmount(absoluteValue)
+        val calculationValue = CalcUtil.formatForCalculation(absoluteValue)
 
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage(message)
-            .setPositiveButton("确转换") { _, _ ->
-                // 自动切换 Tab（更改颜色）
-                binding.topTabLayout.getTabAt(targetTabPosition)?.select()
+            .setPositiveButton("确认转换") { _, _ ->
 
-                // 将负数转为正数并更新显示
-                binding.tvAmount.text = displayValue
+                // 【核心】通过 ViewModel 同步所有状态
+                // 更新金额 LiveData，这样两边的 Fragment 都会显示正数
+                viewModel.updateAmount(displayValue)
 
-                // 当前的计算过程也要进行清空
-                binding.tvCalculation.text = calculationValue
+                // 更新计算过程，防止用户删一个字符又变回负数
+                viewModel.calculationExpression.value = calculationValue
 
-                // 可选：提示用户已转换
+                // 【切换】发出指令让 Activity 拨动 ViewPager2
+                viewModel.jumpToPage.value = targetTabPosition
+
+                // 提示用户
                 Toast.makeText(this, "已为您切换状态", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("不用了", null)
             .show()
     }
-
-    private fun showCameraBottomSheet() {
-        // 1. 实例化 BottomSheetDialog，并传入我们写好的透明样式
-        val bottomSheetDialog = BottomSheetDialog(this, R.style.TransparentBottomSheetStyle)
-
-        // 2. 使用 ViewBinding 绑定弹窗布局 (假设布局文件名为 layout_dialog_camera.xml)
-        val dialogBinding = LayoutDialogCameraBinding.inflate(layoutInflater)
-
-        // 3. 设置内容视图
-        bottomSheetDialog.setContentView(dialogBinding.root)
-
-        // 在图库里面选择图片
-        dialogBinding.llAlbum.setOnClickListener {
-            PictureSelector.create(this)
-                .openGallery(SelectMimeType.ofImage())
-                .setImageEngine(GlideEngine.createGlideEngine())
-                .setSelectionMode(SelectModeConfig.MULTIPLE)
-                .setMinSelectNum(1)
-                .setMaxSelectNum(9)
-                .forResult(object : OnResultCallbackListener<LocalMedia> {
-                    override fun onResult(result: ArrayList<LocalMedia>) {
-                        // 如果没有图片直接返回
-                        if (result.isEmpty()) return
-
-                        imageSelectList.clear()
-                        imageSelectList.addAll(result)
-
-                        // 拿第一张图的真实路径
-                        val firstMedia = result[0]
-                        val path = firstMedia.realPath ?: firstMedia.path
-
-                        binding.llCameraDefault.visibility = View.GONE
-                        binding.ivPreview.visibility = View.VISIBLE
-
-                        // 使用glide加载缩略图
-                        Glide.with(this@ManuallyActivity)
-                            .load(path)
-                            .transform(CenterCrop(), RoundedCorners(15))
-                            .into(binding.ivPreview)
-
-                    }
-
-                    override fun onCancel() {
-                        // 取消选择
-                    }
-                })
-            bottomSheetDialog.dismiss()
-        }
-
-        // 拍照逻辑
-        dialogBinding.llTakePhoto.setOnClickListener {
-            PictureSelector.create(this)
-                .openCamera(SelectMimeType.ofImage()) // 直接打开相机模式
-                .setCameraImageFormat(PictureMimeType.JPEG) // 设置拍照图片格式
-                .forResult(object : OnResultCallbackListener<LocalMedia> {
-                    override fun onResult(result: ArrayList<LocalMedia>) {
-                        // 下面的逻辑和图库选择图片则一致
-                        if (result.isNotEmpty()) {
-                            imageSelectList.clear()
-                            imageSelectList.addAll(result)
-
-                            val path = result[0].path
-
-                            binding.llCameraDefault.visibility = View.GONE
-                            binding.ivPreview.visibility = View.VISIBLE
-
-                            // 用 Glide 加载高清原图
-                            Glide.with(this@ManuallyActivity)
-                                .load(path)
-                                .transform(CenterCrop(), RoundedCorners(15))
-                                .into(binding.ivPreview)
-                        }
-                    }
-
-                    override fun onCancel() {}
-                })
-            bottomSheetDialog.dismiss()
-        }
-
-        // 5. 显示弹窗 (系统会自动执行从底部升起的动画，并让背景变灰)
-        bottomSheetDialog.show()
-    }
-
-    /**
-     * 将dp转换为px，方便在Kt里面直接转换
-     */
-    fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
-    fun Float.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
-
 }
