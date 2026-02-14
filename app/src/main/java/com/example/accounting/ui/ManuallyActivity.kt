@@ -1,7 +1,11 @@
 package com.example.accounting.ui
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.icu.text.DecimalFormat
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -9,19 +13,33 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.distinctUntilChanged
+import com.example.accounting.MainActivity
 import com.example.accounting.R
 import com.example.accounting.adapter.RecordPagerAdapter
+import com.example.accounting.data.model.Record
 import com.example.accounting.databinding.ActivityManuallyBinding
 import com.example.accounting.engine.CalculatorEngine
 import com.example.accounting.utils.CalcUtil
+import com.example.accounting.utils.FileUtil.copyImagesToPrivateStorage
+import com.example.accounting.utils.SpUtil
 import com.example.accounting.viewmodel.BillViewModel
 import com.google.android.material.tabs.TabLayoutMediator
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.abs
 
 class ManuallyActivity : AppCompatActivity() {
     private lateinit var binding: ActivityManuallyBinding
 
-    private val viewModel : BillViewModel by viewModels()
+    private val viewModel: BillViewModel by viewModels()
+
+    // 列表展示用（简短一些）
+    private val dateFormatter = DateTimeFormatter.ofPattern("M-d H:mm", Locale.getDefault())
+
+    // 详情或存储用（完整日期）
+    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy-M-d H:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,7 +64,97 @@ class ManuallyActivity : AppCompatActivity() {
         binding.ivBack.setOnClickListener { finish() }
         binding.ivTextBack.setOnClickListener { finish() }
 
+        // 监听保存按钮
+        binding.tvSave.setOnClickListener {
+            saveRecordToDatabase()
+        }
+
     }
+
+    private fun saveRecordToDatabase() {
+        val currentPage = binding.mainViewPager.currentItem // 0:支出, 1:收入
+
+        // 1. 获取金额（处理 0.00 的情况）
+        val amountStr = viewModel.amount.value ?: "0.00"
+        // 获取金额之后还需要消除逗号
+        val amountVal = amountStr.replace(",", "")
+
+        // 2. 根据当前页面映射对应的属性
+        val (rawDate, rawCategory, rawAccount, rawRemark, rawImages) = if (currentPage == 0) {
+            // 支出
+            FiveTuple(
+                viewModel.expenseDate,
+                viewModel.expenseCategoryItem,
+                viewModel.expenseAccount,
+                viewModel.expenseRemark,
+                viewModel.expenseImage
+            )
+        } else {
+            // 收入
+            FiveTuple(
+                viewModel.incomeDate,
+                viewModel.incomeCategoryItem,
+                viewModel.incomeAccount,
+                viewModel.incomeRemark,
+                viewModel.incomeImage
+            )
+        }
+
+        // 3. 将图片复制到私有目录（关键：解决 I/O 错误）
+        val privateImagePaths = copyImagesToPrivateStorage(this, rawImages)
+
+        // 4. 处理日期格式化（使用你之前定义的 fullDateFormatter）
+        val instant = Instant.ofEpochMilli(rawDate)
+        val localDate = instant.atZone(ZoneId.systemDefault()).toLocalDateTime()
+        val dateString = localDate.format(fullDateFormatter)
+
+        // 获取分类图标昵称
+        val categoryIcon = this.resources.getResourceEntryName(rawCategory.iconRes)
+
+        // 5. 构建 Record 对象
+        val record = Record(
+            amount = amountVal,
+            type = currentPage, // 0或1
+            userId = SpUtil.getUserId(this),
+            categoryIcon = categoryIcon,
+            categoryId = rawCategory.id,
+            categoryName = rawCategory.name,
+            categoryGroupName = rawCategory.groupName,
+            accountId = rawAccount.id,
+            paymentMethod = rawAccount.name,
+            timestamp = rawDate,
+            dateStr = dateString,
+            remark = rawRemark,
+            images = privateImagePaths // 存入私有目录路径列表
+        )
+//        Log.e(
+//            "RecordDetail", """
+//    |--- 账单详情 ---
+//    |金额: ${record.amount}
+//    |类型: ${if (record.type == 0) "支出" else "收入"}
+//    |图标Id: ${record.categoryIcon}
+//    |分类Id: ${record.categoryId}
+//    |分类名称: ${record.categoryName}
+//    |分类分组: ${record.categoryGroupName}
+//    |账户Id: ${record.accountId}
+//    |支付方式: ${record.paymentMethod}
+//    |时间戳: ${record.timestamp}
+//    |日期字符串: ${record.dateStr}
+//    |备注: ${record.remark}
+//    |图片路径: ${record.images.joinToString(", ")}
+//    |----------------
+//""".trimMargin()
+//        )
+
+        // 6. 调用 ViewModel 的插入方法
+        viewModel.insertRecord(record)
+
+        // 7. 保存成功后关闭页面且跳转到主页
+        finish()
+    }
+
+    // 辅助类用于解构赋值
+    data class FiveTuple<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
 
     /**
      * 初始化所有计算按钮
@@ -226,8 +334,8 @@ class ManuallyActivity : AppCompatActivity() {
                 // 兜底
                 val finalResult = if (result >= 1000000000.0) 999999999.99 else result
                 viewModel.updateAmount(CalcUtil.formatAmount(finalResult))
-                // 计算结束，输入框不能清除，避免后续用户还想计算
-                viewModel.updateCalculationExpression(CalcUtil.formatForCalculation(finalResult))
+                // 计算结束，输入框不能清除，避免后续用户还想计算，同时需要使用decimal格式化，有小数最多保留两位，没有则不保留
+                viewModel.updateCalculationExpression(DecimalFormat("#.##").format(finalResult))
             }
         } catch (_: Exception) {
             viewModel.updateAmount(getString(R.string.init_amount))

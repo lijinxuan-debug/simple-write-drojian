@@ -6,7 +6,7 @@ import com.example.accounting.data.model.AccountItem
 import com.example.accounting.data.model.CategoryGroup
 import com.example.accounting.data.model.CategoryItem
 
-object CategoryData {
+object CategoryAndAccountData {
     // 支出类型
     val expenseCategories = listOf(
         CategoryGroup(

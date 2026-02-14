@@ -19,5 +19,4 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :id")
     suspend fun getUserById(id: Long): User?
 
-
 }

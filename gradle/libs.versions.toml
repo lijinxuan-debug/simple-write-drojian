@@ -15,6 +15,9 @@ glide = "4.15.1"
 fragment = "1.6.1"
 room = "2.6.1"
 ksp = "2.0.21-1.0.27"
+gson = "2.10.1"
+lifecycle = "2.6.2"
+pickerview = "4.1.9"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +35,9 @@ androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycle" }
+android-pickerview = { group = "com.contrarywind", name = "Android-PickerView", version.ref = "pickerview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

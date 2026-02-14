@@ -1,10 +1,12 @@
+package com.example.accounting.ui.record
+
 import android.content.Context
-import android.content.Context.INPUT_METHOD_SERVICE
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -17,21 +19,20 @@ import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.example.accounting.R
 import com.example.accounting.adapter.AccountGroupAdapter
 import com.example.accounting.adapter.CategoryGroupAdapter
-import com.example.accounting.data.model.AccountGroup
-import com.example.accounting.data.model.AccountItem
 import com.example.accounting.data.model.CategoryGroup
-import com.example.accounting.data.model.CategoryItem
 import com.example.accounting.databinding.FragmentRecordBinding
 import com.example.accounting.databinding.LayoutAccountBottomSheetBinding
 import com.example.accounting.databinding.LayoutCategoryBottomSheetBinding
 import com.example.accounting.databinding.LayoutDialogCameraBinding
 import com.example.accounting.engine.GlideEngine
-import com.example.accounting.utils.CategoryData.accountGroups
-import com.example.accounting.utils.CategoryData.expenseCategories
-import com.example.accounting.utils.CategoryData.incomeCategories
+import com.example.accounting.utils.CategoryAndAccountData
+import com.example.accounting.utils.CategoryAndAccountData.expenseCategories
+import com.example.accounting.utils.CategoryAndAccountData.incomeCategories
 import com.example.accounting.viewmodel.BillViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.timepicker.MaterialTimePicker
+import com.google.android.material.timepicker.TimeFormat
 import com.luck.picture.lib.basic.PictureSelector
 import com.luck.picture.lib.config.PictureMimeType
 import com.luck.picture.lib.config.SelectMimeType
@@ -41,9 +42,11 @@ import com.luck.picture.lib.interfaces.OnExternalPreviewEventListener
 import com.luck.picture.lib.interfaces.OnResultCallbackListener
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Calendar
 import java.util.Locale
 
 class RecordFragment : Fragment() {
@@ -58,9 +61,6 @@ class RecordFragment : Fragment() {
 
     // 默认设置今天
     private var selectedDateMillis: Long = System.currentTimeMillis()
-
-    private val dateFormatter = DateTimeFormatter.ofPattern("M月d日", Locale.getDefault())
-    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.getDefault())
 
     private var imageSelectList = ArrayList<LocalMedia>()
 
@@ -124,6 +124,17 @@ class RecordFragment : Fragment() {
                 // 同时输入横线变细
                 binding.lineAmount.layoutParams.height = 1.5f.dpToPx()
                 binding.lineAmount.requestLayout()
+                // 计算过程需要先隐藏才可以
+                binding.hsvCalculation.visibility = View.INVISIBLE
+            }
+        }
+
+        // 观察保存结果
+        viewModel.billSaveResult.observe(viewLifecycleOwner) { result ->
+            result.onSuccess {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+            }.onFailure { e ->
+                Toast.makeText(requireContext(), e.message, Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -148,37 +159,7 @@ class RecordFragment : Fragment() {
         binding.ivPreview.setOnClickListener {
             // 只有当列表里有图片时才进入预览
             if (imageSelectList.isNotEmpty()) {
-                PictureSelector.create(this)
-                    .openPreview() // 打开预览模式
-                    .setImageEngine(GlideEngine.createGlideEngine()) // 必须设置图片引擎
-                    .setExternalPreviewEventListener(object : OnExternalPreviewEventListener {
-                        // 【核心：监听预览界面的删除动作】
-                        override fun onPreviewDelete(position: Int) {
-                            // 当用户在预览界面点击“删除”时，同步更新我们本地的全局列表
-                            imageSelectList.removeAt(position)
-
-                            // 检查是否删光了
-                            if (imageSelectList.isEmpty()) {
-                                // 如果图删完了，切换回“加号”状态
-                                binding.ivPreview.visibility = View.GONE
-                                binding.llCameraDefault.visibility = View.VISIBLE
-                            } else {
-                                // 如果还有图，把缩略图更新为剩下的第一张
-                                updateThumbnail(imageSelectList[0].path)
-                            }
-                        }
-
-                        override fun onLongPressDownload(
-                            context: Context?,
-                            media: LocalMedia?
-                        ): Boolean {
-                            // 长按功能暂不设计
-                            return false
-                        }
-
-                    })
-                    // 启动预览：参数分别是 (起始位置, 是否显示删除, 数据源)
-                    .startActivityPreview(0, true, imageSelectList)
+                selectPicture()
             }
         }
 
@@ -198,12 +179,14 @@ class RecordFragment : Fragment() {
             initAccountSelection()
         }
 
-        // 2. 点击金额显示区域，再次弹出键盘
+        // 点击金额显示区域，再次弹出键盘
         binding.clAmountArea.setOnClickListener {
             viewModel.updateKeyboardVisible(true)
+            // 同时计算过程也要显现
+            binding.hsvCalculation.visibility = View.VISIBLE
         }
 
-        // 监听点击事件按钮逻辑
+        // 监听点击时间按钮逻辑
         binding.llTimeRow.setOnClickListener {
             showDatePicker()
         }
@@ -217,7 +200,7 @@ class RecordFragment : Fragment() {
             // 将光标移到末尾
             binding.etRemark.setSelection(binding.etRemark.text.length)
             // 强制弹出软键盘
-            val imm = requireContext().getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(binding.etRemark, InputMethodManager.SHOW_IMPLICIT)
         }
 
@@ -232,7 +215,83 @@ class RecordFragment : Fragment() {
                     binding.etRemark.clearFocus()
                 }
             }
+
+            // 同时将备注保存
+            if (pageType == 0) {
+                viewModel.expenseRemark = binding.etRemark.text.toString()
+            } else {
+                viewModel.incomeRemark = binding.etRemark.text.toString()
+            }
+
             insets
+        }
+
+        // 初始化支出和收入分类初始值
+        initDefaultCategory()
+    }
+
+    private fun selectPicture(){
+        PictureSelector.create(this)
+            .openPreview() // 打开预览模式
+            .setImageEngine(GlideEngine.createGlideEngine()) // 必须设置图片引擎
+            .setExternalPreviewEventListener(object : OnExternalPreviewEventListener {
+                // 【核心：监听预览界面的删除动作】
+                override fun onPreviewDelete(position: Int) {
+                    // 当用户在预览界面点击“删除”时，同步更新我们本地的全局列表
+                    imageSelectList.removeAt(position)
+
+                    val pathList = imageSelectList.map { result ->
+                        result.realPath ?: result.path
+                    }
+
+                    // 同时更新viewModel选中的图片数据
+                    if (pageType == 0) {
+                        viewModel.expenseImage = pathList
+                    } else {
+                        viewModel.expenseImage = pathList
+                    }
+
+                    // 检查是否删光了
+                    if (imageSelectList.isEmpty()) {
+                        // 如果图删完了，切换回“加号”状态
+                        binding.ivPreview.visibility = View.GONE
+                        binding.llCameraDefault.visibility = View.VISIBLE
+                    } else {
+                        // 如果还有图，把缩略图更新为剩下的第一张
+                        updateThumbnail(imageSelectList[0].path)
+                    }
+                }
+
+                override fun onLongPressDownload(
+                    context: Context?,
+                    media: LocalMedia?
+                ): Boolean {
+                    // 长按功能暂不设计
+                    return false
+                }
+
+            })
+            // 启动预览：参数分别是 (起始位置, 是否显示删除, 数据源)
+            .startActivityPreview(0, true, imageSelectList)
+    }
+
+    private fun initDefaultCategory() {
+        // 根据当前是支出还是收入，拿到对应的数据源
+        val defaultList = if (pageType == 0) expenseCategories else incomeCategories
+
+        // 确保列表不为空，防止崩溃
+        if (defaultList.isNotEmpty()) {
+            val firstGroup = defaultList[0]
+            if (firstGroup.items.isNotEmpty()) {
+                val firstItem = firstGroup.items[0]
+                binding.tvCategoryName.text = "${firstGroup.groupName} -> ${firstItem.name}"
+
+                if (pageType == 0) {
+                    viewModel.expenseCategoryItem = firstItem
+                } else {
+                    viewModel.incomeCategoryItem = firstItem
+                }
+            }
         }
     }
 
@@ -246,7 +305,8 @@ class RecordFragment : Fragment() {
 
     private fun showCameraBottomSheet() {
         // 1. 实例化 BottomSheetDialog，并传入我们写好的透明样式
-        val bottomSheetDialog = BottomSheetDialog(requireContext(), R.style.TransparentBottomSheetStyle)
+        val bottomSheetDialog =
+            BottomSheetDialog(requireContext(), R.style.TransparentBottomSheetStyle)
 
         // 2. 使用 ViewBinding 绑定弹窗布局 (假设布局文件名为 layout_dialog_camera.xml)
         val dialogBinding = LayoutDialogCameraBinding.inflate(layoutInflater)
@@ -270,16 +330,26 @@ class RecordFragment : Fragment() {
                         imageSelectList.clear()
                         imageSelectList.addAll(result)
 
+                        val pathList = result.map { media ->
+                            // 优先真实路径，找不到则普通路径即可
+                            media.realPath ?: media.path
+                        }
+
+                        if (pageType == 0) {
+                            viewModel.expenseImage = pathList
+                        } else {
+                            viewModel.incomeImage = pathList
+                        }
+
                         // 拿第一张图的真实路径
-                        val firstMedia = result[0]
-                        val path = firstMedia.realPath ?: firstMedia.path
+                        val firstPath = pathList[0]
 
                         binding.llCameraDefault.visibility = View.GONE
                         binding.ivPreview.visibility = View.VISIBLE
 
                         // 使用glide加载缩略图
                         Glide.with(binding.ivPreview)
-                            .load(path)
+                            .load(firstPath)
                             .transform(CenterCrop(), RoundedCorners(15))
                             .into(binding.ivPreview)
 
@@ -304,14 +374,25 @@ class RecordFragment : Fragment() {
                             imageSelectList.clear()
                             imageSelectList.addAll(result)
 
-                            val path = result[0].path
+                            val pathList = result.map { media ->
+                                // 优先真实路径，找不到则普通路径即可
+                                media.realPath ?: media.path
+                            }
+
+                            val firstPath = pathList[0]
+
+                            if (pageType == 0) {
+                                viewModel.expenseImage = pathList
+                            } else {
+                                viewModel.incomeImage = pathList
+                            }
 
                             binding.llCameraDefault.visibility = View.GONE
                             binding.ivPreview.visibility = View.VISIBLE
 
                             // 用 Glide 加载高清原图
                             Glide.with(binding.ivPreview)
-                                .load(path)
+                                .load(firstPath)
                                 .transform(CenterCrop(), RoundedCorners(15))
                                 .into(binding.ivPreview)
                         }
@@ -336,7 +417,14 @@ class RecordFragment : Fragment() {
 
         val categoryAdapter = CategoryGroupAdapter(categoryGroups) { selectedCategoryItem ->
             // 更新主界面显示的分类名
-            binding.tvCategoryName.text = "${selectedCategoryItem.groupName} -> ${selectedCategoryItem.name}"
+            binding.tvCategoryName.text =
+                "${selectedCategoryItem.groupName} -> ${selectedCategoryItem.name}"
+
+            if (pageType == 0) {
+                viewModel.expenseCategoryItem = selectedCategoryItem
+            } else {
+                viewModel.incomeCategoryItem = selectedCategoryItem
+            }
 
             // 选完关掉弹窗
             bottomSheetDialog.dismiss()
@@ -360,9 +448,15 @@ class RecordFragment : Fragment() {
         val sheetBinding = LayoutAccountBottomSheetBinding.inflate(layoutInflater)
         bottomSheetDialog.setContentView(sheetBinding.root)
 
-        val accountAdapter = AccountGroupAdapter(accountGroups) { selectedAccount ->
+        val accountAdapter = AccountGroupAdapter(CategoryAndAccountData.accountGroups) { selectedAccount ->
             // 更新主界面显示的账户名
             binding.tvAccountName.text = "${selectedAccount.name}(CNY)"
+
+            if (pageType == 0) {
+                viewModel.expenseAccount = selectedAccount
+            } else {
+                viewModel.incomeAccount = selectedAccount
+            }
 
             // 选完关掉弹窗
             bottomSheetDialog.dismiss()
@@ -386,50 +480,86 @@ class RecordFragment : Fragment() {
     }
 
     private fun showDatePicker() {
-        // 创建 MaterialDatePicker
+        // 1. 第一步：日期选择
         val datePicker = MaterialDatePicker.Builder.datePicker()
             .setTitleText("选择账单日期")
-            .setSelection(selectedDateMillis) // 默认选中上一次选中的日期
+            .setSelection(selectedDateMillis)
             .build()
 
-        datePicker.addOnPositiveButtonClickListener { selection ->
-            selectedDateMillis = selection
-            // 使用我们之前写的友好日期逻辑函数
-            binding.tvSelectedTime.text = getFriendlyDate(selection)
+        datePicker.addOnPositiveButtonClickListener { dateSelection ->
+            // 2. 第二步：当日期选好后，立即弹出时间选择器
+            showTimePicker(dateSelection)
         }
 
-        datePicker.show(parentFragmentManager, "DATE_PICKER_TAG")
+        datePicker.show(parentFragmentManager, "DATE_PICKER")
     }
 
-    fun getFriendlyDate(millis: Long): String {
-        // 1. 将毫秒转为 LocalDate (强制使用 UTC，确保不受当地时区偏移干扰)
-        val targetDate = Instant.ofEpochMilli(millis)
-            .atOffset(ZoneOffset.UTC)
-            .toLocalDate()
+    private fun showTimePicker(dateMillis: Long) {
+        val now = Calendar.getInstance()
 
-        // 2. 获取当地的纯日期 (LocalDate.now 本身不带时分秒，非常安全)
+        val timePicker = MaterialTimePicker.Builder()
+            .setTimeFormat(TimeFormat.CLOCK_24H) // 24小时制
+            .setHour(now.get(Calendar.HOUR_OF_DAY)) // 默认当前时间
+            .setMinute(now.get(Calendar.MINUTE))
+            .setTitleText("选择具体时间")
+            .build()
+
+        timePicker.addOnPositiveButtonClickListener {
+            // 3. 第三步：将日期和时间合并
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = dateMillis
+            calendar.set(Calendar.HOUR_OF_DAY, timePicker.hour)
+            calendar.set(Calendar.MINUTE, timePicker.minute)
+
+            val finalDateTime = calendar.timeInMillis
+            selectedDateMillis = finalDateTime
+
+            // 更新 ViewModel
+            if (pageType == 0) {
+                viewModel.expenseDate = finalDateTime
+            } else {
+                viewModel.incomeDate = finalDateTime
+            }
+
+            // 更新 UI（记得修改 getFriendlyDate 以支持显示时间，如 "今天 14:30"）
+            binding.tvSelectedTime.text = getFriendlyDateTime(finalDateTime)
+        }
+
+        timePicker.show(parentFragmentManager, "TIME_PICKER")
+    }
+
+    fun getFriendlyDateTime(millis: Long): String {
+        // 1. 获取本地时区和时间对象
+        val zoneId = ZoneId.systemDefault()
+        val targetDateTime = Instant.ofEpochMilli(millis).atZone(zoneId).toLocalDateTime()
+        val targetDate = targetDateTime.toLocalDate()
+
         val today = LocalDate.now()
-
-        // 3. 计算天数差 (ChronoUnit 会处理闰年等逻辑)
         val diffDays = ChronoUnit.DAYS.between(today, targetDate).toInt()
 
-        // 4. 格式化日期部分 (dateFormatter 和 fullDateFormatter 使用之前定义的)
-        val datePart = targetDate.format(dateFormatter)
+        // 2. 准备各种格式化工具
+        val timePart = targetDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+        val datePartShort = targetDate.format(DateTimeFormatter.ofPattern("M月d日"))
+        val datePartFull = targetDate.format(DateTimeFormatter.ofPattern("yyyy年M月d日"))
 
-        return when (diffDays) {
-            0 -> "今天 $datePart"
-            -1 -> "昨天 $datePart"
-            -2 -> "前天 $datePart"
-            1 -> "明天 $datePart"
-            2 -> "后天 $datePart"
+        // 3. 核心修改：将描述词和日期拼接
+        val dateDescription = when (diffDays) {
+            0 -> "今天 $datePartShort"
+            -1 -> "昨天 $datePartShort"
+            -2 -> "前天 $datePartShort"
+            1 -> "明天 $datePartShort"
+            2 -> "后天 $datePartShort"
             else -> {
                 if (targetDate.year == today.year) {
-                    datePart
+                    datePartShort
                 } else {
-                    targetDate.format(fullDateFormatter)
+                    datePartFull
                 }
             }
         }
+
+        // 4. 最终组合结果
+        return "$dateDescription $timePart"
     }
 
     override fun onDestroyView() {

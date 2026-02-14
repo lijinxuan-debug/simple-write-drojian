@@ -123,15 +123,33 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        // 模拟生成 6 位验证码并存入你的 LruCache
-        val code = (100000..999999).random().toString()
-        SmartRedis.set(email, code, 30) // 存入 30 秒有效
+        // 检查权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
 
-        // 模拟发送
+                // 如果没权限，去申请。
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                return
+            }
+        }
+
+        // 有权限，执行真正的发送逻辑
+        executeSendAction(email)
+    }
+
+    private fun executeSendAction(email: String) {
+        // 模拟生成 6 位验证码
+        val code = (100000..999999).random().toString()
+        SmartRedis.set(email, code, 30)
+
+        // 发送通知
         sendVerifyNotification(code)
 
         // 启动倒计时
         startCountDown()
+
+        Toast.makeText(this, "验证码已发送", Toast.LENGTH_SHORT).show()
     }
 
     private fun startCountDown() {
@@ -214,15 +232,6 @@ class RegisterActivity : AppCompatActivity() {
                 description = "用于接收单机版模拟验证码"
             }
             manager.createNotificationChannel(channel)
-        }
-
-        // 弹出权限通知栏
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                // 弹出系统权限请求对话框
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
-            }
         }
 
         // 2. 构建通知内容

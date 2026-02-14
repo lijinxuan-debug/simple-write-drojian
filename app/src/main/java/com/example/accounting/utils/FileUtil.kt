@@ -53,4 +53,37 @@ object FileUtil {
         return if (file.exists()) file else null
     }
 
+    /**
+     * 将图片复制到私有目录
+     * @param originPaths 原始路径列表（相册路径）
+     * @return 存储在私有目录后的新路径列表
+     */
+    fun copyImagesToPrivateStorage(context: Context, originPaths: List<String>): List<String> {
+        val newPathList = mutableListOf<String>()
+
+        // 1. 获取私有目录下的 images 文件夹 (如果没有则创建)
+        val projectDir = File(context.filesDir, "bill_images")
+        if (!projectDir.exists()) projectDir.mkdirs()
+
+        originPaths.forEach { originPath ->
+            val originFile = File(originPath)
+            if (originFile.exists()) {
+                // 2. 生成新的文件名（防止重名，建议用时间戳或原名）
+                val newFileName = "IMG_${System.currentTimeMillis()}_${originFile.name}"
+                val destFile = File(projectDir, newFileName)
+
+                try {
+                    // 3. 利用 Kotlin 的 File 扩展函数直接复制（非常简单）
+                    originFile.copyTo(destFile, true)
+
+                    // 4. 将新的私有目录路径存入列表
+                    newPathList.add(destFile.absolutePath)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        return newPathList
+    }
+
 }

@@ -67,6 +67,7 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <TextView
+            android:id="@+id/all_expense_amount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/all_expenditure"
@@ -74,6 +75,7 @@
             android:textSize="20sp" />
 
         <TextView
+            android:id="@+id/expense_amount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="¥ 0.00"
@@ -87,7 +89,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.5" />
+        app:layout_constraintGuide_percent="0.50121653" />
 
     <View
         android:id="@+id/view_divider"
@@ -112,6 +114,7 @@
         app:layout_constraintStart_toEndOf="@+id/guideline_vertical">
 
         <TextView
+            android:id="@+id/all_income_amount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/all_revenue"
@@ -119,6 +122,7 @@
             android:textSize="20sp" />
 
         <TextView
+            android:id="@+id/income_amount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="¥ 0.00"
@@ -139,7 +143,8 @@
         android:textSize="16sp"
 
         app:drawableEndCompat="@drawable/ic_arrow_bottom_warm"
-        app:layout_constraintStart_toStartOf="@id/layout_expense"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/guideline_vertical"
         app:layout_constraintTop_toBottomOf="@id/view_header_bg" />
 
     <TextView
@@ -166,8 +171,23 @@
         android:textSize="16sp"
 
         app:drawableEndCompat="@drawable/ic_arrow_bottom_warm"
-        app:layout_constraintStart_toStartOf="@id/layout_revenue"
+        app:layout_constraintStart_toStartOf="@id/guideline_vertical"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/view_header_bg" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_record_list"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+
+        app:layout_constraintTop_toBottomOf="@id/tv_start_date"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        tools:listitem="@layout/item_bill_record" />
 
     <LinearLayout
         android:id="@+id/ll_sub_menu"
@@ -179,7 +199,7 @@
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@+id/fab_add"
         app:layout_constraintEnd_toEndOf="@+id/fab_add"
-        tools:visibility="visible">
+        tools:visibility="invisible">
 
         <LinearLayout
             android:id="@+id/item_camera_add"

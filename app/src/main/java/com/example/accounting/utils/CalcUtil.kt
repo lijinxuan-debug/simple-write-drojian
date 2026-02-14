@@ -1,5 +1,6 @@
 package com.example.accounting.utils
 
+import android.annotation.SuppressLint
 import java.text.DecimalFormat
 import kotlin.math.abs
 
@@ -32,6 +33,7 @@ object CalcUtil {
     /**
      * 格式化计算值：纯数字 (用于 tvCalculation)
      */
+    @SuppressLint("DefaultLocale")
     fun formatForCalculation(result: Double): String {
         val finalResult = coerceResult(result)
         // 使用 %.2f 确保不生成千分位逗号

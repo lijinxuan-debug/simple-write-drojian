@@ -6,6 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.accounting"
+
     compileSdk {
         version = release(36)
     }
@@ -57,4 +58,7 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    implementation(libs.google.gson)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.android.pickerview)
 }
