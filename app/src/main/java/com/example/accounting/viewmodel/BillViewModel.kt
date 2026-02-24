@@ -15,10 +15,17 @@ import com.example.accounting.data.model.Record
 import com.example.accounting.utils.CategoryAndAccountData
 import com.example.accounting.utils.SpUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.lang.Exception
 import java.text.DecimalFormat
+import java.time.LocalDate
+import java.time.ZoneId
 
 class BillViewModel(application: Application) : AndroidViewModel(application) {
     // 获取recordDao实例
@@ -59,20 +66,33 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     private val formater = DecimalFormat("#,##0.00")
 
-    // 所有账单
-    val allRecords: LiveData<List<Record>> = recordDao.selectAllRecord(SpUtil.getUserId(application)).asLiveData()
+    private val currentYear = MutableStateFlow(LocalDate.now().year)
+    private val currentMonth = MutableStateFlow(LocalDate.now().monthValue)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val monthRecords: Flow<List<Record>> = combine(currentYear,currentMonth) { year, month ->
+        getMonthRange(year,month)
+    }.flatMapLatest { (startTime,endTime) ->
+        recordDao.selectRecordsByMonth(SpUtil.getUserId(application),startTime,endTime)
+    }
+
     // 总支出
-    val allExpense: LiveData<String> = allRecords.map { list ->
+    val allExpense: Flow<String> = monthRecords.map { list ->
         val sum = list.filter { it.type == 0 } // 过滤出支出
             .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
         formater.format(sum)
     }
 
     // 总收入
-    val allIncome: LiveData<String> = allRecords.map { list ->
+    val allIncome: Flow<String> = monthRecords.map { list ->
         val sum = list.filter { it.type == 1 } // 过滤出收入
             .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
         formater.format(sum)
+    }
+
+    fun changeDate(year: Int, month: Int) {
+        currentYear.value = year
+        currentMonth.value = month
     }
 
     // 更新金额的方法
@@ -94,6 +114,19 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateUnitHintVisible(newUnitHintVisible: Boolean) {
         unitHintVisible.value = newUnitHintVisible
+    }
+
+    private fun getMonthRange(year: Int, month: Int): Pair<Long, Long> {
+        val start = LocalDate.of(year,month,1)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+
+        val end = LocalDate.of(year,month,1)
+            .plusMonths(1)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+
+        return Pair(start,end)
     }
 
     /**

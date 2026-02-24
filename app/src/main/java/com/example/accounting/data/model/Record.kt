@@ -31,7 +31,9 @@ data class Record(
     // --- 时间相关 ---
     val timestamp: Long,               // 原始时间戳（毫秒级，用于精确排序和周/月/年等逻辑运算）
 
-    val dateStr: String,               // 格式化后的日期字符串（例如：“2026年2月12日”，用于界面分组显示和简单的 SQL 模糊查询）
+    val dateStr: String,               // 格式化后的日期字符串（例如：“2月12日 周四”，用于界面分组显示和简单的 SQL 模糊查询）
+
+    val timeStr: String,               // 格式化后的时间字符串
 
     // --- 备注与附件 ---
     val remark: String = "",           // 用户填写的备注信息，默认为空字符串

@@ -1,11 +1,11 @@
 package com.example.accounting.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -24,6 +24,7 @@ import com.example.accounting.databinding.ActivityRegisterBinding
 import com.example.accounting.utils.SmartRedis
 import com.example.accounting.utils.SpUtil
 import com.example.accounting.viewmodel.UserViewModel
+import androidx.core.graphics.toColorInt
 
 class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
@@ -43,7 +44,7 @@ class RegisterActivity : AppCompatActivity() {
         // 渲染标题颜色
         binding.registerTitle.text = buildSpannedString {
             append(getString(R.string.register))
-            color(Color.parseColor("#FBB03B")) {
+            color("#FBB03B".toColorInt()) {
                 append(getString(R.string.simple_accounting))
             }
             append(getString(R.string.account))
@@ -73,7 +74,7 @@ class RegisterActivity : AppCompatActivity() {
         binding.gainVerify.setOnClickListener { gainVerify() }
 
         // 最后输入密码后直接点击软键盘
-        binding.password.setOnEditorActionListener { v, actionId, event ->
+        binding.password.setOnEditorActionListener { _, actionId, _ ->
             // 判断点击的是否是“完成”动作
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 // 调用注册方法
@@ -159,6 +160,7 @@ class RegisterActivity : AppCompatActivity() {
 
         countDownTimer = object : CountDownTimer(30000, 1000) {
             // 每秒触发一次
+            @SuppressLint("SetTextI18n")
             override fun onTick(millisUntilFinished: Long) {
                 val secondsLeft = millisUntilFinished / 1000
                 binding.gainVerify.text = "${secondsLeft}s 后重发"

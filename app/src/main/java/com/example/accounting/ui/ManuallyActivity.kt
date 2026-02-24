@@ -1,11 +1,8 @@
 package com.example.accounting.ui
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.Intent
 import android.icu.text.DecimalFormat
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -13,7 +10,6 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.distinctUntilChanged
-import com.example.accounting.MainActivity
 import com.example.accounting.R
 import com.example.accounting.adapter.RecordPagerAdapter
 import com.example.accounting.data.model.Record
@@ -35,11 +31,10 @@ class ManuallyActivity : AppCompatActivity() {
 
     private val viewModel: BillViewModel by viewModels()
 
-    // 列表展示用（简短一些）
-    private val dateFormatter = DateTimeFormatter.ofPattern("M-d H:mm", Locale.getDefault())
-
     // 详情或存储用（完整日期）
-    private val fullDateFormatter = DateTimeFormatter.ofPattern("yyyy-M-d H:mm", Locale.getDefault())
+    private val groupDateFormatter = DateTimeFormatter.ofPattern("MM月dd日 E", Locale.getDefault())
+
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,8 +100,11 @@ class ManuallyActivity : AppCompatActivity() {
 
         // 4. 处理日期格式化（使用你之前定义的 fullDateFormatter）
         val instant = Instant.ofEpochMilli(rawDate)
-        val localDate = instant.atZone(ZoneId.systemDefault()).toLocalDateTime()
-        val dateString = localDate.format(fullDateFormatter)
+        val localDateTime = instant.atZone(ZoneId.systemDefault()).toLocalDateTime()
+
+        val dateString = localDateTime.format(groupDateFormatter)
+
+        val timeString = localDateTime.format(timeFormatter)
 
         // 获取分类图标昵称
         val categoryIcon = this.resources.getResourceEntryName(rawCategory.iconRes)
@@ -124,6 +122,7 @@ class ManuallyActivity : AppCompatActivity() {
             paymentMethod = rawAccount.name,
             timestamp = rawDate,
             dateStr = dateString,
+            timeStr = timeString,
             remark = rawRemark,
             images = privateImagePaths // 存入私有目录路径列表
         )

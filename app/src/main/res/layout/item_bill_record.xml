@@ -1,31 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="8dp"
+    android:orientation="vertical"
 
-    android:backgroundTint="@color/yellow_beige"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    android:background="@color/white">
 
-    android:clickable="true"
-    android:focusable="true"
-    android:foreground="?attr/selectableItemBackground">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_date_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/tv_date_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2月12日 周四"
+            android:textColor="#999999"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp">
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp">
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_category_icon"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_car"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_rent"
+            android:background="#F5F5F5"
 
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -34,49 +47,69 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:text="进货支出 ｜ 现金账户"
+            android:text="进货支出"
             android:textColor="#333333"
             android:textSize="16sp"
-            android:textStyle="bold"
-
             app:layout_constraintStart_toEndOf="@id/iv_category_icon"
-            app:layout_constraintTop_toTopOf="@id/iv_category_icon" />
+            app:layout_constraintTop_toTopOf="@id/iv_category_icon"
+            app:layout_constraintBottom_toBottomOf="@id/iv_category_icon"/>
+
+        <TextView
+            android:id="@+id/tv_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0.00"
+            android:textColor="#4A90E2"
+            android:textSize="18sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_category_name" />
 
         <TextView
             android:id="@+id/tv_remark"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="未设置"
+            android:text="u为奴那你说说十字弩"
             android:textColor="#999999"
-            android:textSize="12sp"
-
-            app:layout_constraintEnd_toStartOf="@+id/tv_amount"
+            android:textSize="13sp"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/tv_category_name"
             app:layout_constraintTop_toBottomOf="@id/tv_category_name" />
 
-        <TextView
-            android:id="@+id/tv_amount"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/layout_images"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="10000000000.80"
-            android:textColor="#FFB800"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_category_name" />
+            app:layout_constraintStart_toStartOf="@id/tv_category_name"
+            app:layout_constraintTop_toBottomOf="@id/tv_remark">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_marginEnd="4dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/img" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tv_time"
+            android:id="@+id/tv_account_info"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="2023-04-10"
-            android:textColor="#999999"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toBottomOf="@id/tv_remark"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:layout_marginTop="8dp"
+            android:text="现金账户 · 13:42"
+            android:textColor="#CCCCCC"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="@id/tv_category_name"
+            app:layout_constraintTop_toBottomOf="@id/layout_images" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.cardview.widget.CardView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F8F8F8" />
+</LinearLayout>

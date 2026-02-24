@@ -60,5 +60,4 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.google.gson)
     implementation(libs.androidx.lifecycle.livedata.ktx)
-    implementation(libs.android.pickerview)
 }

@@ -1,21 +1,28 @@
 package com.example.accounting.ui.home
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
+import android.widget.NumberPicker
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.accounting.R
 import com.example.accounting.adapter.RecordAdapter
+import com.example.accounting.databinding.DialogWheelDateBinding
 import com.example.accounting.databinding.FragmentHomeBinding
 import com.example.accounting.ui.ManuallyActivity
 import com.example.accounting.viewmodel.BillViewModel
-import java.time.Instant
-import java.time.ZoneId
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
 import kotlin.getValue
 
 
@@ -30,7 +37,8 @@ class HomeFragment : Fragment() {
 
     private val viewModel : BillViewModel by viewModels()
 
-    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    private val yearFormatter = DateTimeFormatter.ofPattern("yyyy年")
+    private val monthFormatter = DateTimeFormatter.ofPattern("MM月")
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -40,8 +48,14 @@ class HomeFragment : Fragment() {
         return binding.root
     }
 
+    @SuppressLint("UnsafeRepeatOnLifecycleDetector")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // 设置日期为当前时间
+        val now = LocalDate.now()
+        binding.tvHeaderYear.text = now.format(yearFormatter)
+        binding.tvHeaderMonth.text = now.format(monthFormatter)
 
         // 给添加账单按钮添加点击事件
         binding.fabAdd.setOnClickListener {
@@ -61,50 +75,92 @@ class HomeFragment : Fragment() {
             adapter = recordAdapter
         }
 
-        // 观察liveData
-        viewModel.allRecords.observe(viewLifecycleOwner) { newList ->
-            recordAdapter.submitList(newList)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 观察账单列表流
+                launch {
+                    viewModel.monthRecords.collect { records ->
+                        if (records.isEmpty()) {
+                            binding.llEmptyView.visibility = View.VISIBLE
+                            binding.rvRecordList.visibility = View.GONE
+                        } else {
+                            binding.llEmptyView.visibility = View.GONE
+                            binding.rvRecordList.visibility = View.VISIBLE
+                            recordAdapter.submitList(records)
+                        }
+                    }
+                }
+                // 2. 观察总支出流
+                launch {
+                    viewModel.allExpense.collect { expenseStr ->
+                        binding.expenseAmount.text = expenseStr
+                    }
+                }
+
+                // 3. 观察总收入流
+                launch {
+                    viewModel.allIncome.collect { incomeStr ->
+                        binding.incomeAmount.text = incomeStr
+                    }
+                }
+            }
         }
 
-        // 更新支出和收入
-        viewModel.allExpense.observe(viewLifecycleOwner) { expenseStr ->
-            binding.expenseAmount.text = expenseStr
-        }
-
-        viewModel.allIncome.observe(viewLifecycleOwner) { incomeStr ->
-            binding.incomeAmount.text = incomeStr
+        // 设置开始时间点击：选完后自动弹结束时间
+        binding.layoutMonthPicker.setOnClickListener {
+            showMonthPicker()
         }
 
     }
 
-    private fun showWheelDatePicker(isStartDate: Boolean) {
-        val pvTime = TimePickerBuilder(requireContext()) { date, _ ->
-            // 1. 将 java.util.Date 安全转换为 java.time.LocalDate
-            val localDate = Instant.ofEpochMilli(date.time)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
+    /**
+     * 弹出年月选择器（适配新的右上角布局）
+     */
+    @SuppressLint("DefaultLocale", "SetTextI18n")
+    private fun showMonthPicker() {
+        val dialog = BottomSheetDialog(requireContext())
+        // 确保你的 dialog 布局已经去掉了 npDay
+        val dialogBinding = DialogWheelDateBinding.inflate(layoutInflater)
+        dialog.setContentView(dialogBinding.root)
 
-            // 2. 使用线程安全的 DateTimeFormatter 格式化
-            val dateString = localDate.format(dateFormatter)
+        val calendar = Calendar.getInstance()
 
-            // 3. 更新 UI
-            if (isStartDate) {
-                binding.tvStartDate.text = dateString
-                // 更新 ViewModel 逻辑...
-            } else {
-                binding.tvEndDate.text = dateString
-                // 更新 ViewModel 逻辑...
-            }
+        // 1. 初始化年份滚轮
+        dialogBinding.npYear.apply {
+            minValue = 2000
+            maxValue = 2100
+            // 尝试从当前 header 获取年份，如果没有则用系统年份
+            value = binding.tvHeaderYear.text.toString().replace("年", "").toIntOrNull()
+                ?: calendar.get(Calendar.YEAR)
+            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
         }
-            .setType(booleanArrayOf(true, true, true, false, false, false))
-            .setCancelText("取消")
-            .setSubmitText("确定")
-            .setTitleText("选择日期")
-            // 设置符合图中的黄色风格
-            .setSubmitColor(ContextCompat.getColor(requireContext(), R.color.bill_add))
-            .build()
 
-        pvTime.show()
+        // 2. 初始化月份滚轮
+        dialogBinding.npMonth.apply {
+            minValue = 1
+            maxValue = 12
+            // 尝试从当前 header 获取月份，如果没有则用系统月份
+            value = binding.tvHeaderMonth.text.toString().replace("月", "").toIntOrNull()
+                ?: (calendar.get(Calendar.MONTH) + 1)
+            descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+        }
+
+        // 3. 确定按钮逻辑
+        dialogBinding.btnConfirm.setOnClickListener {
+            val selectedYear = dialogBinding.npYear.value
+            val selectedMonth = dialogBinding.npMonth.value
+
+            // 更新 UI 显示
+            binding.tvHeaderYear.text = "${selectedYear}年"
+            binding.tvHeaderMonth.text = String.format("%02d月", selectedMonth)
+
+            // 【核心】在这里触发数据刷新逻辑
+            viewModel.changeDate(selectedYear,selectedMonth)
+
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun toggleMenu() {

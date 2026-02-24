@@ -43,11 +43,9 @@ import com.luck.picture.lib.interfaces.OnResultCallbackListener
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
-import java.util.Locale
 
 class RecordFragment : Fragment() {
 
@@ -87,6 +85,8 @@ class RecordFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.tvSelectedTime.text = getFriendlyDateTime(System.currentTimeMillis())
 
         // 观察金额变化
         viewModel.amount.observe(viewLifecycleOwner) { newAmount ->

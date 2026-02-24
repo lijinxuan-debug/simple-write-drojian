@@ -26,34 +26,50 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/tv_category_filter"
+    <LinearLayout
+        android:id="@+id/layout_month_picker"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="80dp"
-        android:drawablePadding="4dp"
-        android:text="@string/all_categories"
-
-        android:textColor="@android:color/white"
-        android:textSize="20sp"
-        app:drawableEndCompat="@drawable/ic_arrow_bottom"
-
-        app:drawableTint="@android:color/white"
+        android:layout_marginEnd="20dp"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:clickable="true"
+        android:focusable="true"
         app:layout_constraintBottom_toBottomOf="@+id/tv_title"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/tv_title" />
+        app:layout_constraintTop_toTopOf="@+id/tv_title">
 
-    <ImageView
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginEnd="16dp"
-        android:contentDescription="@string/reset"
-        android:src="@drawable/ic_refresh"
+        <TextView
+            android:id="@+id/tv_header_year"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2026年"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp" />
 
-        app:layout_constraintBottom_toBottomOf="@+id/tv_category_filter"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/tv_category_filter"
-        app:tint="@android:color/white" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_header_month"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="02月"
+                android:textColor="@android:color/white"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_arrow_bottom"
+                app:tint="@android:color/white" />
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/layout_expense"
@@ -131,58 +147,40 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-
-    <TextView
-        android:id="@+id/tv_start_date"
+    <LinearLayout
+        android:id="@+id/ll_empty_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:drawablePadding="10dp"
-        android:text="@string/begin_data"
-        android:textColor="@color/bill_add"
-        android:textSize="16sp"
-
-        app:drawableEndCompat="@drawable/ic_arrow_bottom_warm"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/guideline_vertical"
-        app:layout_constraintTop_toBottomOf="@id/view_header_bg" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="@string/right_arrow"
-        android:textColor="@color/bill_add"
-        android:textSize="16sp"
-
-        android:textStyle="bold"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/view_header_bg" />
+        app:layout_constraintTop_toBottomOf="@id/view_header_bg">
 
-    <TextView
-        android:id="@+id/tv_end_date"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:drawablePadding="10dp"
-        android:text="@string/end_data"
-        android:textColor="@color/bill_add"
-        android:textSize="16sp"
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_empty_bill"
+            app:tint="#D3D3D3" />
 
-        app:drawableEndCompat="@drawable/ic_arrow_bottom_warm"
-        app:layout_constraintStart_toStartOf="@id/guideline_vertical"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/view_header_bg" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="暂无数据"
+            android:textColor="#D3D3D3"
+            android:textSize="16sp" />
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_record_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="12dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
 
-        app:layout_constraintTop_toBottomOf="@id/tv_start_date"
+        app:layout_constraintTop_toBottomOf="@id/view_header_bg"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

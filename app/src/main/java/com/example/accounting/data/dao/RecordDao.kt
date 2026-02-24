@@ -13,6 +13,6 @@ interface RecordDao {
     suspend fun insertRecord(record: Record)
 
     // 查询当前用户的所有账单
-    @Query("SELECT * FROM records WHERE userId = :userId ORDER BY timestamp DESC")
-    fun selectAllRecord(userId: Long): Flow<List<Record>>
+    @Query("SELECT * FROM records WHERE userId = :userId AND timestamp >= :startTime AND timestamp <= :endTime ORDER BY timestamp DESC")
+    fun selectRecordsByMonth(userId: Long, startTime: Long, endTime: Long): Flow<List<Record>>
 }
