@@ -110,4 +110,23 @@ object CategoryAndAccountData {
 //            AccountItem(601, "负债账户", "供应商应付款", R.drawable.ic_payable)
 //        ))
     )
+
+    // 懒加载建立map
+    private val categoryLookupMap by lazy {
+        (expenseCategories + incomeCategories).flatMap { it.items }.associateBy { it.id }
+    }
+
+    private val accountLookupMap by lazy {
+        accountGroups.flatMap { it.items }.associateBy { it.id }
+    }
+
+    // 通过map查找对应的
+    fun getCategoryById(id: Int): CategoryItem? {
+        return categoryLookupMap[id]
+    }
+
+    fun getAccountById(id: Int): AccountItem? {
+        return accountLookupMap[id]
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.example.accounting.ui.record
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -83,10 +84,9 @@ class RecordFragment : Fragment() {
         return binding.root
     }
 
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        binding.tvSelectedTime.text = getFriendlyDateTime(System.currentTimeMillis())
 
         // 观察金额变化
         viewModel.amount.observe(viewLifecycleOwner) { newAmount ->
@@ -136,6 +136,42 @@ class RecordFragment : Fragment() {
             }.onFailure { e ->
                 Toast.makeText(requireContext(), e.message, Toast.LENGTH_SHORT).show()
             }
+        }
+
+        // 1. 根据当前页面身份，锁定对应的 LiveData 源
+        val sourceDate = if (pageType == 0) viewModel.expenseDate else viewModel.incomeDate
+        val sourceCategory = if (pageType == 0) viewModel.expenseCategoryItem else viewModel.incomeCategoryItem
+        val sourceAccount = if (pageType == 0) viewModel.expenseAccount else viewModel.incomeAccount
+        val sourceRemark = if (pageType == 0) viewModel.expenseRemark else viewModel.incomeRemark
+        val sourceImage = if (pageType == 0) viewModel.expenseImage else viewModel.incomeImage
+
+        // 统一观察日期
+        sourceDate.observe(viewLifecycleOwner) { millis ->
+            binding.tvSelectedTime.text = getFriendlyDateTime(millis)
+            selectedDateMillis = millis // 同步给 Fragment 内部变量
+        }
+
+        // 统一观察分类
+        sourceCategory.observe(viewLifecycleOwner) { item ->
+            binding.tvCategoryName.text = "${item.groupName} -> ${item.name}"
+        }
+
+        // 统一观察账户
+        sourceAccount.observe(viewLifecycleOwner) { account ->
+            binding.tvAccountName.text = "${account.name}(CNY)"
+        }
+
+        // 统一观察备注
+        sourceRemark.observe(viewLifecycleOwner) { remark ->
+            // 只有当输入框内容不一致时才更新，防止死循环
+            if (binding.etRemark.text.toString() != remark) {
+                binding.etRemark.setText(remark)
+            }
+        }
+
+        // 统一观察图片
+        sourceImage.observe(viewLifecycleOwner) { paths ->
+            handleImageMapping(paths)
         }
 
         // 1. 拿到身份 (0是支出，1是收入)
@@ -218,9 +254,9 @@ class RecordFragment : Fragment() {
 
             // 同时将备注保存
             if (pageType == 0) {
-                viewModel.expenseRemark = binding.etRemark.text.toString()
+                viewModel.expenseRemark.value = binding.etRemark.text.toString()
             } else {
-                viewModel.incomeRemark = binding.etRemark.text.toString()
+                viewModel.incomeRemark.value = binding.etRemark.text.toString()
             }
 
             insets
@@ -228,6 +264,38 @@ class RecordFragment : Fragment() {
 
         // 初始化支出和收入分类初始值
         initDefaultCategory()
+    }
+
+    private fun handleImageMapping(pathList: List<String>) {
+        // 同步给预览列表
+        imageSelectList = convertPathsToLocalMedia(pathList)
+
+        if (pathList.isNotEmpty()) {
+            // 隐藏加号，显示预览图
+            binding.llCameraDefault.visibility = View.GONE
+            binding.ivPreview.visibility = View.VISIBLE
+            // 映射第一张图到封面
+            updateThumbnail(pathList[0])
+        } else {
+            // 没图就切回加号
+            binding.llCameraDefault.visibility = View.VISIBLE
+            binding.ivPreview.visibility = View.GONE
+        }
+    }
+
+    // 将 String 路径列表转换为 LocalMedia 列表
+    private fun convertPathsToLocalMedia(paths: List<String>): ArrayList<LocalMedia> {
+        val result = ArrayList<LocalMedia>()
+        for (path in paths) {
+            val media = LocalMedia.create()
+            media.path = path        // 文件的路径
+            media.realPath = path    // 真实路径（在私有目录里，path 和 realPath 通常一致）
+            media.mimeType = "image/*" // 设置类型
+            media.chooseModel = 1    // 这是图片模式
+
+            result.add(media)
+        }
+        return result
     }
 
     private fun selectPicture(){
@@ -246,9 +314,9 @@ class RecordFragment : Fragment() {
 
                     // 同时更新viewModel选中的图片数据
                     if (pageType == 0) {
-                        viewModel.expenseImage = pathList
+                        viewModel.expenseImage.value = pathList
                     } else {
-                        viewModel.expenseImage = pathList
+                        viewModel.incomeImage.value = pathList
                     }
 
                     // 检查是否删光了
@@ -287,9 +355,9 @@ class RecordFragment : Fragment() {
                 binding.tvCategoryName.text = "${firstGroup.groupName} -> ${firstItem.name}"
 
                 if (pageType == 0) {
-                    viewModel.expenseCategoryItem = firstItem
+                    viewModel.expenseCategoryItem.value = firstItem
                 } else {
-                    viewModel.incomeCategoryItem = firstItem
+                    viewModel.incomeCategoryItem.value = firstItem
                 }
             }
         }
@@ -336,9 +404,9 @@ class RecordFragment : Fragment() {
                         }
 
                         if (pageType == 0) {
-                            viewModel.expenseImage = pathList
+                            viewModel.expenseImage.value = pathList
                         } else {
-                            viewModel.incomeImage = pathList
+                            viewModel.incomeImage.value = pathList
                         }
 
                         // 拿第一张图的真实路径
@@ -382,9 +450,9 @@ class RecordFragment : Fragment() {
                             val firstPath = pathList[0]
 
                             if (pageType == 0) {
-                                viewModel.expenseImage = pathList
+                                viewModel.expenseImage.value = pathList
                             } else {
-                                viewModel.incomeImage = pathList
+                                viewModel.incomeImage.value = pathList
                             }
 
                             binding.llCameraDefault.visibility = View.GONE
@@ -421,9 +489,9 @@ class RecordFragment : Fragment() {
                 "${selectedCategoryItem.groupName} -> ${selectedCategoryItem.name}"
 
             if (pageType == 0) {
-                viewModel.expenseCategoryItem = selectedCategoryItem
+                viewModel.expenseCategoryItem.value = selectedCategoryItem
             } else {
-                viewModel.incomeCategoryItem = selectedCategoryItem
+                viewModel.incomeCategoryItem.value = selectedCategoryItem
             }
 
             // 选完关掉弹窗
@@ -449,13 +517,10 @@ class RecordFragment : Fragment() {
         bottomSheetDialog.setContentView(sheetBinding.root)
 
         val accountAdapter = AccountGroupAdapter(CategoryAndAccountData.accountGroups) { selectedAccount ->
-            // 更新主界面显示的账户名
-            binding.tvAccountName.text = "${selectedAccount.name}(CNY)"
-
             if (pageType == 0) {
-                viewModel.expenseAccount = selectedAccount
+                viewModel.expenseAccount.value = selectedAccount
             } else {
-                viewModel.incomeAccount = selectedAccount
+                viewModel.incomeAccount.value = selectedAccount
             }
 
             // 选完关掉弹窗
@@ -516,13 +581,10 @@ class RecordFragment : Fragment() {
 
             // 更新 ViewModel
             if (pageType == 0) {
-                viewModel.expenseDate = finalDateTime
+                viewModel.expenseDate.value = finalDateTime
             } else {
-                viewModel.incomeDate = finalDateTime
+                viewModel.incomeDate.value = finalDateTime
             }
-
-            // 更新 UI（记得修改 getFriendlyDate 以支持显示时间，如 "今天 14:30"）
-            binding.tvSelectedTime.text = getFriendlyDateTime(finalDateTime)
         }
 
         timePicker.show(parentFragmentManager, "TIME_PICKER")

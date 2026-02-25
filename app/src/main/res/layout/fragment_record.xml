@@ -11,7 +11,7 @@
         android:clickable="true"
         android:focusable="true"
         android:paddingHorizontal="20dp"
-        android:background="@color/shallow_gray"
+        android:background="@color/white"
 
         android:paddingTop="10dp"
         android:paddingBottom="5dp"
@@ -153,6 +153,7 @@
                 android:layout_height="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:paddingEnd="10dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true">
@@ -198,6 +199,7 @@
                 android:layout_height="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:paddingEnd="10dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true">
@@ -243,6 +245,9 @@
                 android:layout_height="56dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+
+                android:paddingEnd="10dp"
+
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true">
@@ -275,6 +280,7 @@
                     android:layout_width="14dp"
                     android:layout_height="14dp"
                     android:src="@drawable/ic_arrow_right"
+
                     app:tint="#CCCCCC" />
             </LinearLayout>
 
@@ -292,6 +298,7 @@
 
                 android:paddingTop="15dp"
                 android:paddingBottom="15dp"
+                android:paddingEnd="10dp"
 
                 android:orientation="horizontal"
 
@@ -328,8 +335,8 @@
 
                 <ImageView
                     android:id="@+id/iv_voice_remark"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
+                    android:layout_width="27dp"
+                    android:layout_height="27dp"
                     android:padding="2dp"
                     android:src="@drawable/ic_mic_custom"
                     app:tint="#999999"

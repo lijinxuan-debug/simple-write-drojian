@@ -1,8 +1,11 @@
 package com.example.accounting.data.model
 
+import android.os.Parcelable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 @Entity(tableName = "records")
 data class Record(
     @PrimaryKey(autoGenerate = true)
@@ -39,4 +42,4 @@ data class Record(
     val remark: String = "",           // 用户填写的备注信息，默认为空字符串
 
     val images: List<String> = emptyList() // 账单关联的图片路径列表（存储在私有目录下的路径）
-)
+) : Parcelable

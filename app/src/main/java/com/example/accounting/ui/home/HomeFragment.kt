@@ -19,6 +19,7 @@ import com.example.accounting.databinding.FragmentHomeBinding
 import com.example.accounting.ui.ManuallyActivity
 import com.example.accounting.viewmodel.BillViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -32,8 +33,6 @@ class HomeFragment : Fragment() {
 
     // 记录菜单是否展开
     private var isMenuExpanded = false
-
-    private val recordAdapter = RecordAdapter()
 
     private val viewModel : BillViewModel by viewModels()
 
@@ -70,12 +69,21 @@ class HomeFragment : Fragment() {
             collapseMenu()
         }
 
+        // 配置适配器
+        val recordAdapter = RecordAdapter { record ->
+            val intent = Intent(requireContext(), ManuallyActivity::class.java)
+            intent.putExtra("recordData",Gson().toJson(record))
+            startActivity(intent)
+        }
+
         // 配置recyclerview
         binding.rvRecordList.apply {
             adapter = recordAdapter
         }
 
+        // 使用协程去收集流Flow
         lifecycleScope.launch {
+            // 这个repeat的作用是节省资源
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // 观察账单列表流
                 launch {

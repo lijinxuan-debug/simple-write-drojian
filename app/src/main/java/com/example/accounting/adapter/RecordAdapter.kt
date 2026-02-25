@@ -17,9 +17,21 @@ import com.example.accounting.engine.GlideEngine
 import com.google.android.material.imageview.ShapeableImageView
 import java.text.DecimalFormat
 
-class RecordAdapter : ListAdapter<Record, RecordAdapter.RecordViewHolder>(RecordDiffCallback) {
+class RecordAdapter(
+    private val onEdit: (Record) -> Unit
+) : ListAdapter<Record, RecordAdapter.RecordViewHolder>(RecordDiffCallback) {
 
-    class RecordViewHolder(val binding: ItemBillRecordBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class RecordViewHolder(val binding: ItemBillRecordBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            binding.data.setOnClickListener {
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val record = getItem(position)
+                    onEdit(record)
+                }
+            }
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecordViewHolder {
         val binding = ItemBillRecordBinding.inflate(LayoutInflater.from(parent.context),parent,false)

@@ -14,12 +14,14 @@ import com.example.accounting.R
 import com.example.accounting.adapter.RecordPagerAdapter
 import com.example.accounting.data.model.Record
 import com.example.accounting.databinding.ActivityManuallyBinding
+import com.example.accounting.databinding.LayoutDialogDeleteBinding
 import com.example.accounting.engine.CalculatorEngine
 import com.example.accounting.utils.CalcUtil
 import com.example.accounting.utils.FileUtil.copyImagesToPrivateStorage
 import com.example.accounting.utils.SpUtil
 import com.example.accounting.viewmodel.BillViewModel
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.gson.Gson
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -43,12 +45,29 @@ class ManuallyActivity : AppCompatActivity() {
         binding = ActivityManuallyBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        viewModel.billDeleteResult.observe(this) { result ->
+            result.onSuccess {
+                Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+            }.onFailure { e ->
+                Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // 这里需要先判断是修改还是新增
+        val json = intent.getStringExtra("recordData")
+        val currentRecord = Gson().fromJson(json, Record::class.java)
+
         // 初始化并监听所有计算按钮
         initCalculatorButton()
 
         // 这里的适配器指的是固定的数据
         val adapter = RecordPagerAdapter(this)
         binding.mainViewPager.adapter = adapter
+
+        // 如果不为空那就说明为编辑
+        if (currentRecord != null) {
+            switchEdit(currentRecord)
+        }
 
         TabLayoutMediator(binding.topTabLayout, binding.mainViewPager) { tab, position ->
             tab.text =
@@ -64,6 +83,65 @@ class ManuallyActivity : AppCompatActivity() {
             saveRecordToDatabase()
         }
 
+        binding.btnEditDone.setOnClickListener {
+            saveRecordToDatabase()
+        }
+
+        // 监听删除按钮
+        binding.btnDelete.setOnClickListener {
+            showDeleteConfirmDialog()
+        }
+    }
+
+    /**
+     * 显示删除确认弹窗
+     */
+    private fun showDeleteConfirmDialog() {
+        // 1. 拿到自定义弹窗的 Binding 实例
+        val dialogBinding = LayoutDialogDeleteBinding.inflate(layoutInflater)
+
+        // 2. 构建并创建 Dialog
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        // 3. 去掉 Dialog 默认的背景（处理圆角白边）
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // 4. 设置点击事件
+        with(dialogBinding) {
+            tvCancel.setOnClickListener {
+                dialog.dismiss()
+            }
+
+            tvConfirmDelete.setOnClickListener {
+                // 执行删除逻辑，传入 ID
+                viewModel.deleteRecord(viewModel.id)
+                dialog.dismiss()
+                // 注意：这里不要写 finish()，我们要等观察者回调
+            }
+        }
+
+        // 5. 显示并设置变暗
+        dialog.show()
+        dialog.window?.setDimAmount(0.5f)
+    }
+
+    private fun switchEdit(record: Record) {
+        viewModel.updateAmount(record.amount)
+        // 更换到支出、收入页面
+        binding.mainViewPager.currentItem = record.type
+        // 先将头部更换账单给隐藏掉
+        binding.topTabLayout.visibility = View.GONE
+        // 同时将当前的账单id传递过去
+        viewModel.id = record.id
+        // 底部的完成和删除按钮也要显现
+        binding.llEditActions.visibility = View.VISIBLE
+        if (record.type == 0) {
+            viewModel.updateExpense(record)
+        } else {
+            viewModel.updateIncome(record)
+        }
     }
 
     private fun saveRecordToDatabase() {
@@ -78,20 +156,20 @@ class ManuallyActivity : AppCompatActivity() {
         val (rawDate, rawCategory, rawAccount, rawRemark, rawImages) = if (currentPage == 0) {
             // 支出
             FiveTuple(
-                viewModel.expenseDate,
-                viewModel.expenseCategoryItem,
-                viewModel.expenseAccount,
-                viewModel.expenseRemark,
-                viewModel.expenseImage
+                viewModel.expenseDate.value ?: System.currentTimeMillis(),
+                viewModel.expenseCategoryItem.value!!,
+                viewModel.expenseAccount.value!!,
+                viewModel.expenseRemark.value ?: "",
+                viewModel.expenseImage.value ?: emptyList()
             )
         } else {
             // 收入
             FiveTuple(
-                viewModel.incomeDate,
-                viewModel.incomeCategoryItem,
-                viewModel.incomeAccount,
-                viewModel.incomeRemark,
-                viewModel.incomeImage
+                viewModel.incomeDate.value ?: System.currentTimeMillis(),
+                viewModel.incomeCategoryItem.value!!,
+                viewModel.incomeAccount.value!!,
+                viewModel.incomeRemark.value ?: "",
+                viewModel.incomeImage.value ?: emptyList()
             )
         }
 
@@ -111,6 +189,7 @@ class ManuallyActivity : AppCompatActivity() {
 
         // 5. 构建 Record 对象
         val record = Record(
+            id = viewModel.id,
             amount = amountVal,
             type = currentPage, // 0或1
             userId = SpUtil.getUserId(this),
@@ -147,6 +226,9 @@ class ManuallyActivity : AppCompatActivity() {
 
         // 6. 调用 ViewModel 的插入方法
         viewModel.insertRecord(record)
+
+        // 同时将id进行清零
+        viewModel.id = 0L
 
         // 7. 保存成功后关闭页面且跳转到主页
         finish()

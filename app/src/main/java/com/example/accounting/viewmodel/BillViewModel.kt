@@ -3,10 +3,7 @@ package com.example.accounting.viewmodel
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.asLiveData
-import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.example.accounting.data.database.AppDatabase
 import com.example.accounting.data.model.AccountItem
@@ -30,6 +27,8 @@ import java.time.ZoneId
 class BillViewModel(application: Application) : AndroidViewModel(application) {
     // 获取recordDao实例
     private val recordDao = AppDatabase.getDatabase(application).recordDao()
+    // 当前编辑的账单ID（默认为0）
+    var id : Long = 0L
     // 计算的结果，即金额数据
     val amount = MutableLiveData<String>("0.00")
 
@@ -50,19 +49,23 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     // 接下来的分类、备注、时间、账户都要分两套，因为支出和收入并不同
     // 其中账户和分类信息都是默认为所有数据第一个，时间也是默认当天
-    var expenseDate : Long = System.currentTimeMillis()
-    var expenseCategoryItem : CategoryItem = CategoryAndAccountData.expenseCategories[0].items[0]
-    var expenseAccount : AccountItem = CategoryAndAccountData.accountGroups[0].items[0]
-    var expenseRemark : String = ""
-    var expenseImage : List<String> = emptyList()
+    // --- 支出部分 ---
+    val expenseDate = MutableLiveData(System.currentTimeMillis())
+    val expenseCategoryItem = MutableLiveData(CategoryAndAccountData.expenseCategories[0].items[0])
+    val expenseAccount = MutableLiveData(CategoryAndAccountData.accountGroups[0].items[0])
+    val expenseRemark = MutableLiveData("")
+    val expenseImage = MutableLiveData<List<String>>(emptyList())
 
-    var incomeDate : Long = System.currentTimeMillis()
-    var incomeCategoryItem : CategoryItem = CategoryAndAccountData.expenseCategories[0].items[0]
-    var incomeAccount : AccountItem = CategoryAndAccountData.accountGroups[0].items[0]
-    var incomeRemark : String = ""
-    var incomeImage : List<String> = emptyList()
+    // --- 收入部分 ---
+    val incomeDate = MutableLiveData(System.currentTimeMillis())
+    val incomeCategoryItem = MutableLiveData(CategoryAndAccountData.incomeCategories[0].items[0]) // 注意这里应该是 incomeCategories
+    val incomeAccount = MutableLiveData(CategoryAndAccountData.accountGroups[0].items[0])
+    val incomeRemark = MutableLiveData("")
+    val incomeImage = MutableLiveData<List<String>>(emptyList())
 
     val billSaveResult = MutableLiveData<Result<String>>()
+
+    val billDeleteResult = MutableLiveData<Result<String>>()
 
     private val formater = DecimalFormat("#,##0.00")
 
@@ -116,6 +119,31 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
         unitHintVisible.value = newUnitHintVisible
     }
 
+    fun updateExpense(record: Record) {
+        expenseRemark.value = record.remark
+        expenseImage.value = record.images
+        expenseDate.value = record.timestamp
+        // 使用你之前在 CategoryAndAccountData 里写的查找方法
+        CategoryAndAccountData.getCategoryById(record.categoryId)?.let {
+            expenseCategoryItem.value = it
+        }
+        CategoryAndAccountData.getAccountById(record.accountId)?.let {
+            expenseAccount.value = it
+        }
+    }
+
+    fun updateIncome(record: Record) {
+        incomeRemark.value = record.remark
+        incomeImage.value = record.images
+        incomeDate.value = record.timestamp
+        CategoryAndAccountData.getCategoryById(record.categoryId)?.let {
+            incomeCategoryItem.value = it
+        }
+        CategoryAndAccountData.getAccountById(record.accountId)?.let {
+            incomeAccount.value = it
+        }
+    }
+
     private fun getMonthRange(year: Int, month: Int): Pair<Long, Long> {
         val start = LocalDate.of(year,month,1)
             .atStartOfDay(ZoneId.systemDefault())
@@ -130,7 +158,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * 将账单存到room数据库
+     * 编辑完将账单保存到room数据库
      */
     fun insertRecord(record: Record) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -140,6 +168,21 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("保存账单出现错误",e.message.toString())
                 billSaveResult.postValue(Result.failure(Exception("保存账单错误")))
+            }
+        }
+    }
+
+    /**
+     * 删除对应的账单
+     */
+    fun deleteRecord(recordId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                recordDao.deleteRecord(recordId)
+                billDeleteResult.postValue(Result.success("账单已删除"))
+            } catch (e: Exception) {
+                Log.e("删除账单出现错误",e.message.toString())
+                billDeleteResult.postValue(Result.failure(Exception("账单无法删除")))
             }
         }
     }
