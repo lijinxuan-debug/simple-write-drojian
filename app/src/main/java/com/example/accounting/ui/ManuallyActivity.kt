@@ -48,6 +48,7 @@ class ManuallyActivity : AppCompatActivity() {
         viewModel.billDeleteResult.observe(this) { result ->
             result.onSuccess {
                 Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+                finish()
             }.onFailure { e ->
                 Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show()
             }
@@ -320,6 +321,10 @@ class ManuallyActivity : AppCompatActivity() {
         // 只保留加减正则
         val isOperatorRegex = "[+\\-]".toRegex()
         val lastPart = current.split(isOperatorRegex).last()
+
+        if (str == "0" && (lastPart == "0" || lastPart == "")) {
+            return
+        }
 
         // --- 1. 预判未来结果是否超标 ---
         if (str.matches("[0-9.]".toRegex())) {

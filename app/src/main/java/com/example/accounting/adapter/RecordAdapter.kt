@@ -1,6 +1,5 @@
 package com.example.accounting.adapter
 
-import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,132 +11,117 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.accounting.R
 import com.example.accounting.data.model.Record
+import com.example.accounting.data.model.RecordListItem
 import com.example.accounting.databinding.ItemBillRecordBinding
+import com.example.accounting.databinding.ItemDateHeaderBinding // 假设你新建了这个极简布局
 import com.example.accounting.engine.GlideEngine
 import com.google.android.material.imageview.ShapeableImageView
 import java.text.DecimalFormat
 
 class RecordAdapter(
     private val onEdit: (Record) -> Unit
-) : ListAdapter<Record, RecordAdapter.RecordViewHolder>(RecordDiffCallback) {
+) : ListAdapter<RecordListItem, RecyclerView.ViewHolder>(RecordDiffCallback) {
 
+    companion object {
+        private const val TYPE_HEADER = 0
+        private const val TYPE_ITEM = 1
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return when (getItem(position)) {
+            is RecordListItem.Header -> TYPE_HEADER
+            is RecordListItem.Item -> TYPE_ITEM
+        }
+    }
+
+    // --- 1. 定义两个不同的 ViewHolder ---
+
+    // 日期头 ViewHolder
+    class HeaderViewHolder(private val binding: ItemDateHeaderBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(header: RecordListItem.Header) {
+            binding.tvDateTitle.text = header.dateStr
+        }
+    }
+
+    // 账单项 ViewHolder
     inner class RecordViewHolder(val binding: ItemBillRecordBinding) : RecyclerView.ViewHolder(binding.root) {
-        init {
-            binding.data.setOnClickListener {
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    val record = getItem(position)
-                    onEdit(record)
-                }
-            }
-        }
-    }
+        fun bind(record: Record) {
+            binding.apply {
+                // 设置图标
+                val resId = root.context.resources.getIdentifier(record.categoryIcon, "drawable", root.context.packageName)
+                ivCategoryIcon.setImageResource(resId)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecordViewHolder {
-        val binding = ItemBillRecordBinding.inflate(LayoutInflater.from(parent.context),parent,false)
-        return RecordViewHolder(binding)
-    }
+                tvCategoryName.text = record.categoryName
+                tvAccountInfo.text = "${record.paymentMethod} · ${record.timeStr}"
+                tvRemark.text = record.remark
 
-    @SuppressLint("SetTextI18n")
-    override fun onBindViewHolder(holder: RecordViewHolder, position: Int) {
-        val record = getItem(position)
-        holder.binding.apply {
-            val iconName = record.categoryIcon
-            val context = root.context
-
-            // 日期分组
-            if (position == 0) {
-                // 第一条数据，必须显示日期
-                layoutDateHeader.visibility = View.VISIBLE
-                tvDateTitle.text = record.dateStr
-            } else {
-                // 获取上一条数据
-                val prevRecord = getItem(position - 1)
-                if (record.dateStr == prevRecord.dateStr) {
-                    // 如果日期相同，隐藏日期头
-                    layoutDateHeader.visibility = View.GONE
-                } else {
-                    // 日期不同，显示日期头
-                    layoutDateHeader.visibility = View.VISIBLE
-                    tvDateTitle.text = record.dateStr
-                }
-            }
-
-            // 根据名字查当前版本的资源 ID
-            val resId = root.context.resources.getIdentifier(
-                iconName,
-                "drawable",
-                root.context.packageName
-            )
-
-            // 设置图标图片
-            ivCategoryIcon.setImageResource(resId)
-            // 设置分类名称
-            tvCategoryName.text = record.categoryName
-            // 设置时间显示
-            tvDateTitle.text = record.dateStr
-            // 显示账单类别和精确时间
-            tvAccountInfo.text = "${record.paymentMethod} · ${record.timeStr}"
-            // 显示图片
-            layoutImages.removeAllViews()
-
-            if (record.images.isNotEmpty()) {
-                layoutImages.visibility = View.VISIBLE
-                record.images.forEach { path ->
-                    val iv = ShapeableImageView(context).apply {
-                        // 【核心修复】必须设置 LayoutParams，否则宽高默认为 0
-                        val size = (80 * resources.displayMetrics.density).toInt() // 80dp 转 px
-                        layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                            marginEnd = (4 * resources.displayMetrics.density).toInt() // 4dp 间距
+                // 图片显示 (建议后续按我说的优化 addView 问题)
+                layoutImages.removeAllViews()
+                if (record.images.isNotEmpty()) {
+                    layoutImages.visibility = View.VISIBLE
+                    record.images.forEach { path ->
+                        val iv = ShapeableImageView(root.context).apply {
+                            val size = (80 * resources.displayMetrics.density).toInt()
+                            layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = 4.dpToPx() }
+                            scaleType = ImageView.ScaleType.CENTER_CROP
                         }
-
-                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        layoutImages.addView(iv)
+                        GlideEngine.createGlideEngine().loadImage(root.context, path, iv)
                     }
-                    // 3. 【核心修复】必须添加到容器中，否则界面上看不见
-                    layoutImages.addView(iv)
-
-                    GlideEngine.createGlideEngine().loadImage(context,path,iv)
+                } else {
+                    layoutImages.visibility = View.GONE
                 }
-            } else {
-                layoutImages.visibility = View.GONE
+
+                // 金额处理
+                val isExpense = record.type == 0
+                val amountValue = record.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+                tvAmount.text = "${if (isExpense) "-" else "+"}${DecimalFormat("#,##0.00").format(amountValue)}"
+                tvAmount.setTextColor(ContextCompat.getColor(root.context, if (isExpense) R.color.expenditure_red else R.color.revenue_green))
+
+                data.setOnClickListener { onEdit(record) }
             }
-
-            // 设置金额显示，这里必须要区分是收入还是支出
-            val isExpense = record.type == 0
-            val prefix = if (isExpense) "-" else "+"
-
-            val amountValue = record.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
-            val formatter = DecimalFormat("#,##0.00")
-            val thousandSeparatorAmount = formatter.format(amountValue)
-
-            tvAmount.text = "$prefix${thousandSeparatorAmount}"
-            // 同时还要设置金额的颜色
-            val colorRes = if (isExpense) {
-                R.color.revenue_green
-            } else {
-                R.color.expenditure_red
-            }
-            tvAmount.setTextColor(ContextCompat.getColor(context, colorRes))
-            // 设置备注
-            tvRemark.text = record.remark
         }
     }
 
-    // 定义对比原则（DiffUtil）
-    object RecordDiffCallback : DiffUtil.ItemCallback<Record>() {
-        override fun areItemsTheSame(
-            oldItem: Record,
-            newItem: Record
-        ): Boolean {
-            return oldItem.id == newItem.id
-        }
+    // --- 2. 修改创建和绑定逻辑 ---
 
-        override fun areContentsTheSame(
-            oldItem: Record,
-            newItem: Record
-        ): Boolean {
-            return oldItem == newItem // 这里面是因为data class的 == 会自动比较所有字段
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return if (viewType == TYPE_HEADER) {
+            HeaderViewHolder(ItemDateHeaderBinding.inflate(inflater, parent, false))
+        } else {
+            RecordViewHolder(ItemBillRecordBinding.inflate(inflater, parent, false))
         }
+    }
 
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val data = getItem(position)
+        if (holder is HeaderViewHolder && data is RecordListItem.Header) {
+            holder.bind(data)
+        } else if (holder is RecordViewHolder && data is RecordListItem.Item) {
+            holder.bind(data.record)
+        }
+    }
+
+    // 辅助扩展
+    private fun Int.dpToPx() = (this * android.content.res.Resources.getSystem().displayMetrics.density).toInt()
+}
+
+// --- 3. 彻底重写 DiffCallback ---
+
+object RecordDiffCallback : DiffUtil.ItemCallback<RecordListItem>() {
+    override fun areItemsTheSame(oldItem: RecordListItem, newItem: RecordListItem): Boolean {
+        if (oldItem::class != newItem::class) return false
+        return when {
+            oldItem is RecordListItem.Header && newItem is RecordListItem.Header ->
+                oldItem.dateStr == newItem.dateStr
+            oldItem is RecordListItem.Item && newItem is RecordListItem.Item ->
+                oldItem.record.id == newItem.record.id
+            else -> false
+        }
+    }
+
+    override fun areContentsTheSame(oldItem: RecordListItem, newItem: RecordListItem): Boolean {
+        return oldItem == newItem
     }
 }

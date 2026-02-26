@@ -140,7 +140,7 @@
 
         android:orientation="vertical"
 
-        tools:visibility="gone"
+        android:visibility="invisible"
 
         app:layout_constraintBottom_toBottomOf="parent">
 

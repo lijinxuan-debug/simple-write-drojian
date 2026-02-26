@@ -69,7 +69,7 @@ class HomeFragment : Fragment() {
             collapseMenu()
         }
 
-        // 配置适配器
+        // 配置适配器，跳转使用
         val recordAdapter = RecordAdapter { record ->
             val intent = Intent(requireContext(), ManuallyActivity::class.java)
             intent.putExtra("recordData",Gson().toJson(record))

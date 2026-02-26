@@ -545,27 +545,38 @@ class RecordFragment : Fragment() {
     }
 
     private fun showDatePicker() {
-        // 1. 第一步：日期选择
+        // 日期选择
         val datePicker = MaterialDatePicker.Builder.datePicker()
             .setTitleText("选择账单日期")
             .setSelection(selectedDateMillis)
             .build()
 
         datePicker.addOnPositiveButtonClickListener { dateSelection ->
-            // 2. 第二步：当日期选好后，立即弹出时间选择器
-            showTimePicker(dateSelection)
+            // 当日期选好后，立即弹出时间选择器（由于日期选择完之后时间都是默认为凌晨时间，避免时区导致日期混乱，需要获取之前用户显示时间）
+            val oldCalendar = Calendar.getInstance().apply {
+                timeInMillis = selectedDateMillis
+            }
+
+            val newCalendar = Calendar.getInstance().apply {
+                timeInMillis = dateSelection
+                set(Calendar.HOUR_OF_DAY, oldCalendar.get(Calendar.HOUR_OF_DAY))
+                set(Calendar.MINUTE, oldCalendar.get(Calendar.MINUTE))
+            }
+
+            showTimePicker(newCalendar.timeInMillis)
         }
 
         datePicker.show(parentFragmentManager, "DATE_PICKER")
     }
 
     private fun showTimePicker(dateMillis: Long) {
-        val now = Calendar.getInstance()
+        val calendar1 = Calendar.getInstance()
+        calendar1.timeInMillis = dateMillis
 
         val timePicker = MaterialTimePicker.Builder()
             .setTimeFormat(TimeFormat.CLOCK_24H) // 24小时制
-            .setHour(now.get(Calendar.HOUR_OF_DAY)) // 默认当前时间
-            .setMinute(now.get(Calendar.MINUTE))
+            .setHour(calendar1.get(Calendar.HOUR_OF_DAY)) // 默认当前时间
+            .setMinute(calendar1.get(Calendar.MINUTE))
             .setTitleText("选择具体时间")
             .build()
 

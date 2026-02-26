@@ -9,6 +9,7 @@ import com.example.accounting.data.database.AppDatabase
 import com.example.accounting.data.model.AccountItem
 import com.example.accounting.data.model.CategoryItem
 import com.example.accounting.data.model.Record
+import com.example.accounting.data.model.RecordListItem
 import com.example.accounting.utils.CategoryAndAccountData
 import com.example.accounting.utils.SpUtil
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -42,7 +44,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     val unitHintVisible = MutableLiveData<Boolean>(false)
 
     // 键盘显示状态 (Activity 控制隐藏，Fragment 监听)
-    val isKeyboardVisible = MutableLiveData<Boolean>(true)
+    val isKeyboardVisible = MutableLiveData<Boolean>(false)
 
     // 记录需要切换到的页面索引：-1 表示不切换，0 表示支出，1 表示收入
     val jumpToPage = MutableLiveData<Int>(-1)
@@ -72,23 +74,38 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     private val currentYear = MutableStateFlow(LocalDate.now().year)
     private val currentMonth = MutableStateFlow(LocalDate.now().monthValue)
 
+    // 1. 先定义一个内部私有的原始流，它是所有数据的源头
     @OptIn(ExperimentalCoroutinesApi::class)
-    val monthRecords: Flow<List<Record>> = combine(currentYear,currentMonth) { year, month ->
-        getMonthRange(year,month)
-    }.flatMapLatest { (startTime,endTime) ->
-        recordDao.selectRecordsByMonth(SpUtil.getUserId(application),startTime,endTime)
+    val rawRecordsFlow: Flow<List<Record>> = combine(currentYear, currentMonth) { year, month ->
+        getMonthRange(year, month)
+    }.flatMapLatest { (startTime, endTime) ->
+        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), startTime, endTime)
+    }.distinctUntilChanged() // 只有当数据库内容真正改变时才触发下游
+
+    // 2. 专门给 RecyclerView 使用的流（带 Header）
+    val monthRecords: Flow<List<RecordListItem>> = rawRecordsFlow.map { records ->
+        val uiList = mutableListOf<RecordListItem>()
+        var lastDate = ""
+        records.forEach { record ->
+            if (record.dateStr != lastDate) {
+                uiList.add(RecordListItem.Header(record.dateStr))
+                lastDate = record.dateStr
+            }
+            uiList.add(RecordListItem.Item(record))
+        }
+        uiList
     }
 
-    // 总支出
-    val allExpense: Flow<String> = monthRecords.map { list ->
-        val sum = list.filter { it.type == 0 } // 过滤出支出
+    // 3. 总支出计算（直接用原始流，不用 filterIsInstance，效率最高）
+    val allExpense: Flow<String> = rawRecordsFlow.map { records ->
+        val sum = records.filter { it.type == 0 } // 0 为支出
             .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
         formater.format(sum)
     }
 
-    // 总收入
-    val allIncome: Flow<String> = monthRecords.map { list ->
-        val sum = list.filter { it.type == 1 } // 过滤出收入
+    // 4. 总收入计算（直接用原始流）
+    val allIncome: Flow<String> = rawRecordsFlow.map { records ->
+        val sum = records.filter { it.type == 1 } // 1 为收入
             .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
         formater.format(sum)
     }
