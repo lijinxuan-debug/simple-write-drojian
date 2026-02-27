@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tv_month_item"
+    android:layout_width="80dp"
+    android:layout_height="40dp"
+    android:gravity="center"
+    android:text="本月"
+    android:background="?attr/selectableItemBackground"
+    android:textColor="#999999"
+    android:textSize="15sp" />

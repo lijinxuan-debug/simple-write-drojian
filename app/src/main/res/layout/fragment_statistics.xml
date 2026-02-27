@@ -34,7 +34,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 app:checkedButton="@+id/btn_month"
-                app:singleSelection="true">
+                app:singleSelection="true"
+                app:selectionRequired="true">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_month"
@@ -52,6 +53,29 @@
                     android:text="年"
                     android:textColor="#333333" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:paddingTop="12dp">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_time_picker"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:overScrollMode="never"
+                android:orientation="vertical"
+                android:scrollbars="none" />
+
+            <View
+                android:layout_width="24dp"
+                android:layout_height="3dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:background="#333333" />
         </LinearLayout>
 
         <LinearLayout

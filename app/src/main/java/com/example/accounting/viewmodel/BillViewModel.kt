@@ -174,6 +174,38 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
         return Pair(start,end)
     }
 
+    private fun getYearRange(year: Int): Pair<Long, Long> {
+        val start = LocalDate.of(year, 1, 1)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+
+        val end = LocalDate.of(year, 1, 1)
+            .plusYears(1) // 增加一年，即到次年1月1日0点
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+
+        return Pair(start, end)
+    }
+
+    val statsYear = MutableStateFlow(2026)
+    val statsMonth = MutableStateFlow(2)
+    val statsMode = MutableStateFlow(0)
+
+    // 专门用来用到使用栏这一块的
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val statsRecordsFlow: Flow<List<Record>> = combine(statsYear, statsMonth, statsMode) { y, m, mode ->
+        if (mode == 0) getMonthRange(y, m) else getYearRange(y)
+    }.flatMapLatest { (start, end) ->
+        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), start, end)
+    }.distinctUntilChanged()
+
+    // 独立的切换方法
+    fun changeStatsDate(year: Int, month: Int, mode: Int) {
+        statsMode.value = mode
+        statsYear.value = year
+        statsMonth.value = month
+    }
+
     /**
      * 编辑完将账单保存到room数据库
      */

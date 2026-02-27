@@ -11,7 +11,9 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.accounting.adapter.RankingAdapter
 import com.example.accounting.adapter.RankingItem
+import com.example.accounting.adapter.TimePickerAdapter
 import com.example.accounting.data.model.Record
+import com.example.accounting.data.model.TimeTab
 import com.example.accounting.databinding.FragmentStatisticsBinding
 import com.example.accounting.databinding.LayoutTypePopupBinding
 import com.example.accounting.viewmodel.BillViewModel
@@ -21,6 +23,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class StatisticsFragment : Fragment() {
     private var _binding: FragmentStatisticsBinding? = null
@@ -38,6 +41,9 @@ class StatisticsFragment : Fragment() {
     // 新增：暂存从 ViewModel 拿到的全量数据
     private var allRecords: List<Record> = emptyList()
 
+    // 0 代表月，1 代表年
+    private var currentPeriodMode = 0
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -49,10 +55,12 @@ class StatisticsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. 初始化图表的样式（关掉网格、右轴等）
+        initTimePicker()
+
+        // 初始化图表的样式（关掉网格、右轴等）
         initLineChart()
 
-        // 2. 开始观察数据并刷新图表
+        // 开始观察数据并刷新图表
         observeData()
 
         binding.tvTypeSelector.setOnClickListener {
@@ -108,14 +116,96 @@ class StatisticsFragment : Fragment() {
         popupWindow.showAsDropDown(binding.tvTypeSelector)
     }
 
+    private fun getDynamicMonthList(): List<TimeTab> {
+        val tabs = mutableListOf<TimeTab>()
+        val now = LocalDate.now()
+
+        // 生成从 -6 到 +6 的月份
+        for (i in -6..6) {
+            val date = now.plusMonths(i.toLong())
+            val y = date.year
+            val m = date.monthValue
+
+            // 逻辑处理显示文字
+            val label = when {
+                i == 0 -> "本月"
+                i == -1 -> "上月"
+                y != now.year -> "${y}-${m}月" // 跨年显示年份
+                else -> "${String.format("%02d", m)}月" // 同年显示 03月 这种格式
+            }
+
+            // 默认选中 i == 0 (本月)
+            tabs.add(TimeTab(label, y, m, i == 0))
+        }
+        return tabs
+    }
+
+
+    // 初始化 RecyclerView
+    private fun initTimePicker() {
+        val timeAdapter = TimePickerAdapter { selectedTab ->
+            viewModel.changeStatsDate(selectedTab.year, selectedTab.month, currentPeriodMode)
+        }
+
+        // 绑定适配器
+        binding.rvTimePicker.adapter = timeAdapter
+
+        // 初始加载：显示月份列表并直接定位到“本月”
+        val initialList = getDynamicMonthList()
+        timeAdapter.submitList(initialList)
+
+        TODO()
+
+        binding.rvTimePicker.scrollToPosition(6)
+
+        // 处理年/月按钮切换
+        binding.toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                currentPeriodMode = if (checkedId == binding.btnMonth.id) 0 else 1
+
+                val newList = if (currentPeriodMode == 0) getDynamicMonthList() else getDynamicYearList()
+                timeAdapter.submitList(newList)
+
+                val selectedIndex = newList.indexOfFirst { it.isSelected }
+                if (selectedIndex != -1) {
+                    binding.rvTimePicker.scrollToPosition(selectedIndex)
+                }
+            }
+        }
+    }
+
+    private fun getDynamicYearList(): List<TimeTab> {
+        val tabs = mutableListOf<TimeTab>()
+        val now = LocalDate.now()
+        val currentYear = now.year
+
+        // 生成前后 2 年，共 5 年的数据（比如 2024, 2025, 2026, 2027, 2028）
+        for (i in -2..2) {
+            val targetYear = currentYear + i
+
+            // 逻辑处理显示文字
+            val label = when (i) {
+                0 -> "本年"
+                -1 -> "去年"
+                1 -> "明年"
+                else -> "${targetYear}年"
+            }
+
+            // 默认选中 i == 0 (本年)
+            // 这里的 month 传 1 即可，因为 getYearRange 只用到 year 字段
+            tabs.add(TimeTab(label, targetYear, 1, i == 0))
+        }
+        return tabs
+    }
+
     private fun updateUIBySelection() {
-        // 1. 统一过滤当前需要的数据（是支出还是收入）
+        // 统一过滤当前需要的数据（是支出还是收入）
         val filtered = allRecords.filter { it.type == currentType }
 
-        // 2. 喂给图表（你现有的方法）
+        // 更新图表
         updateLineChart(filtered)
 
-        // 3. 喂给排行榜（注意：我下面微调了你的 updateRankingList 方法）
+        // 更新排行榜
         updateRankingList(filtered)
     }
 
@@ -131,19 +221,20 @@ class StatisticsFragment : Fragment() {
     private fun initLineChart() {
         binding.lineChart.apply {
             description.isEnabled = false
+            // 这里允许触摸响应主要是为了后续的气泡显示
             setTouchEnabled(true)
             setScaleEnabled(false) // 禁止缩放，防止和滑动冲突
 
-            // --- 解决“变大”的核心配置 ---
+            // 下面主要是为了防止折线图变大变小
             setScaleEnabled(false)       // 禁用双向缩放
             isScaleXEnabled = false      // 禁用 X 轴缩放
             isScaleYEnabled = false      // 禁用 Y 轴缩放
             setPinchZoom(false)          // 禁用 X、Y 轴同时缩放
             isDoubleTapToZoomEnabled = false // 【重点】禁用双击缩放
 
-            // 如果你希望图表在任何情况下都不产生位移（完全固定）
             isDragEnabled = false        // 禁用拖拽平移
 
+            // X轴的相关配置
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
@@ -203,7 +294,7 @@ class StatisticsFragment : Fragment() {
 
     private fun observeData() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.rawRecordsFlow.collect { records ->
+            viewModel.statsRecordsFlow.collect { records ->
                 // 1. 先把全量数据存起来
                 allRecords = records
 
@@ -224,14 +315,21 @@ class StatisticsFragment : Fragment() {
         val entries = ArrayList<Entry>()
         val dateLabels = ArrayList<String>()
 
+        var sum = 0f
         allDates.forEachIndexed { index, date ->
             // 2. 直接计算当前日期下的所有金额总和（因为类型已经过滤过了）
             val daySum = records.filter { it.dateStr == date }
                 .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }.toFloat()
 
+            sum+=daySum
             entries.add(Entry(index.toFloat(), daySum))
             dateLabels.add(date.split(" ")[0])
         }
+
+        // 设置总金额
+        binding.tvTotalLabel.text = sum.toString()
+        // 设置平均值
+
 
         if (allDates.isEmpty()) {
             binding.lineChart.clear()
@@ -251,6 +349,17 @@ class StatisticsFragment : Fragment() {
         }
 
         binding.lineChart.data = LineData(dataSet)
+
+        val marker = CustomMarkerView(
+            context = requireContext(),
+            dateLabels = allDates,     // 传入“密码本”
+            allRecords = allRecords,   // 传入“原始数据库记录”
+            currentType = currentType  // 传入当前是支出还是收入
+        )
+
+        // 3. 将其关联到图表实例
+        marker.chartView = binding.lineChart
+        binding.lineChart.marker = marker
 
         // 4. X 轴配置保持不变
         binding.lineChart.xAxis.apply {
