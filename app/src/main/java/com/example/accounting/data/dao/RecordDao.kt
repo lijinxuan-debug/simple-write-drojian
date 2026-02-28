@@ -1,10 +1,7 @@
 package com.example.accounting.data.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
 import androidx.room.Query
-import androidx.room.Update
 import androidx.room.Upsert
 import com.example.accounting.data.model.Record
 import kotlinx.coroutines.flow.Flow
@@ -28,4 +25,16 @@ interface RecordDao {
      */
     @Query("SELECT * FROM records WHERE userId = :userId AND timestamp >= :startTime AND timestamp <= :endTime ORDER BY timestamp DESC")
     fun selectRecordsByMonth(userId: Long, startTime: Long, endTime: Long): Flow<List<Record>>
+
+    /**
+     * 查询当前用户所有记录的最早时间戳
+     */
+    @Query("SELECT MIN(timestamp) FROM records WHERE userId = :userId")
+    suspend fun getMinTimestamp(userId: Long): Long?
+
+    /**
+     * 查询当前用户所有记录的最晚时间戳
+     */
+    @Query("SELECT MAX(timestamp) FROM records WHERE userId = :userId")
+    suspend fun getMaxTimestamp(userId: Long): Long?
 }

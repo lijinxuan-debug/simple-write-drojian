@@ -9,13 +9,12 @@ import android.view.ViewGroup
 import android.widget.PopupWindow
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.example.accounting.adapter.RankingAdapter
-import com.example.accounting.adapter.RankingItem
 import com.example.accounting.adapter.TimePickerAdapter
 import com.example.accounting.data.model.Record
 import com.example.accounting.data.model.TimeTab
 import com.example.accounting.databinding.FragmentStatisticsBinding
 import com.example.accounting.databinding.LayoutTypePopupBinding
+import com.example.accounting.utils.SpUtil
 import com.example.accounting.viewmodel.BillViewModel
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.components.XAxis
@@ -23,7 +22,10 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
 
 class StatisticsFragment : Fragment() {
     private var _binding: FragmentStatisticsBinding? = null
@@ -31,9 +33,6 @@ class StatisticsFragment : Fragment() {
 
     // 引入你的 ViewModel
     private val viewModel: BillViewModel by viewModels()
-
-    // 引入adapter
-    private val rankingAdapter = RankingAdapter()
 
     // 0 代表支出，1 代表收入
     private var currentType = 0
@@ -43,6 +42,20 @@ class StatisticsFragment : Fragment() {
 
     // 0 代表月，1 代表年
     private var currentPeriodMode = 0
+
+    // 存储当前选中的年/月（用于恢复选中状态）
+    private var selectedYear = LocalDate.now().year
+    private var selectedMonth = LocalDate.now().monthValue
+
+    // 存储时间范围信息
+    private var dataStartYear: Int? = null
+    private var dataStartMonth: Int? = null
+    private var dataEndYear: Int? = null
+    private var dataEndMonth: Int? = null
+
+    // 存储时间戳用于检测时间范围变化
+    private var dataStartTimestamp: Long? = null
+    private var dataEndTimestamp: Long? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -55,7 +68,10 @@ class StatisticsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        initTimePicker()
+        // 先获取时间范围信息，再初始化时间选择器
+        loadTimeRange {
+            initTimePicker()
+        }
 
         // 初始化图表的样式（关掉网格、右轴等）
         initLineChart()
@@ -65,6 +81,45 @@ class StatisticsFragment : Fragment() {
 
         binding.tvTypeSelector.setOnClickListener {
             showTypePopup()
+        }
+    }
+
+    /**
+     * 获取当前的所有数据的起始结束时间
+     */
+    private fun loadTimeRange(onComplete: () -> Unit) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val timeRange = viewModel.getTimeRangeInfo(SpUtil.getUserId(requireContext()))
+            if (timeRange != null) {
+                val minDate = Instant.ofEpochMilli(timeRange.first)
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                val maxDate = Instant.ofEpochMilli(timeRange.second)
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                dataStartYear = minDate.year
+                dataStartMonth = minDate.monthValue
+                dataEndYear = maxDate.year
+                dataEndMonth = maxDate.monthValue
+            }
+            // 时间范围加载完成后执行回调
+            onComplete()
+        }
+    }
+
+    /**
+     * 更新时间选择器列表（保持当前选中状态）
+     */
+    private fun updateTimePickerSelection() {
+        val timeAdapter = binding.rvTimePicker.adapter as? TimePickerAdapter ?: return
+
+        val newList = if (currentPeriodMode == 0) getDynamicMonthList() else getDynamicYearList()
+        timeAdapter.submitList(newList)
+
+        // 滚动到当前选中项
+        binding.rvTimePicker.post {
+            val selectedIndex = newList.indexOfFirst { it.year == selectedYear && it.month == selectedMonth }
+            if (selectedIndex != -1) {
+                binding.rvTimePicker.scrollToPosition(selectedIndex)
+            }
         }
     }
 
@@ -81,7 +136,6 @@ class StatisticsFragment : Fragment() {
             true
         )
 
-        // 3. 直接通过 popupBinding 访问组件，不需要 findViewById
         popupBinding.apply {
             // 4. 初始化勾选显示
             ivExpenseCheck.visibility = if (currentType == 0) View.VISIBLE else View.GONE
@@ -119,49 +173,76 @@ class StatisticsFragment : Fragment() {
     private fun getDynamicMonthList(): List<TimeTab> {
         val tabs = mutableListOf<TimeTab>()
         val now = LocalDate.now()
+        val currentYear = now.year
+        val currentMonth = now.monthValue
 
-        // 生成从 -6 到 +6 的月份
-        for (i in -6..6) {
-            val date = now.plusMonths(i.toLong())
+        // 如果没有数据，只显示本月
+        if (dataStartYear == null || dataStartMonth == null || dataEndYear == null || dataEndMonth == null) {
+            tabs.add(TimeTab("本月", currentYear, currentMonth, true))
+            return tabs
+        }
+
+        val startYear = dataStartYear!!
+        val startMonth = dataStartMonth!!
+        val endYear = dataEndYear!!
+        val endMonth = dataEndMonth!!
+
+        // 计算总月数
+        val totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth)
+
+        // 生成从开始月份到结束月份的列表
+        for (i in 0..totalMonths) {
+            val date = LocalDate.of(startYear, startMonth, 1).plusMonths(i.toLong())
             val y = date.year
             val m = date.monthValue
 
             // 逻辑处理显示文字
             val label = when {
-                i == 0 -> "本月"
-                i == -1 -> "上月"
-                y != now.year -> "${y}-${m}月" // 跨年显示年份
+                y == currentYear && m == currentMonth -> "本月"
+                y == currentYear && m == currentMonth - 1 -> "上月"
+                y != currentYear -> "${y}-${m}月" // 跨年显示年份
                 else -> "${String.format("%02d", m)}月" // 同年显示 03月 这种格式
             }
 
-            // 默认选中 i == 0 (本月)
-            tabs.add(TimeTab(label, y, m, i == 0))
+            // 默认选中当前月份
+            tabs.add(TimeTab(label, y, m, y == currentYear && m == currentMonth))
         }
         return tabs
     }
 
-
-    // 初始化 RecyclerView
+    /**
+     * 初始化时间选择
+     */
     private fun initTimePicker() {
         val timeAdapter = TimePickerAdapter { selectedTab ->
+            selectedYear = selectedTab.year
+            selectedMonth = selectedTab.month
             viewModel.changeStatsDate(selectedTab.year, selectedTab.month, currentPeriodMode)
         }
 
-        // 绑定适配器
         binding.rvTimePicker.adapter = timeAdapter
 
-        // 初始加载：显示月份列表并直接定位到“本月”
         val initialList = getDynamicMonthList()
-        timeAdapter.submitList(initialList)
 
-        TODO()
-
-        binding.rvTimePicker.scrollToPosition(6)
+        // 这里的post是等待recyclerview渲染就绪
+        binding.rvTimePicker.post {
+            timeAdapter.submitList(initialList) {
+                // 获得选中的图标
+                val selectedIndex = initialList.indexOfFirst { it.isSelected }
+                if (selectedIndex != -1) {
+                    binding.rvTimePicker.scrollToPosition(selectedIndex)
+                }
+            }
+        }
 
         // 处理年/月按钮切换
         binding.toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
+                // 查看是当前选中的是月份还是年份
                 currentPeriodMode = if (checkedId == binding.btnMonth.id) 0 else 1
+
+                // 重置选中位置，避免索引冲突
+                timeAdapter.resetSelectedPosition()
 
                 val newList = if (currentPeriodMode == 0) getDynamicMonthList() else getDynamicYearList()
                 timeAdapter.submitList(newList)
@@ -170,6 +251,9 @@ class StatisticsFragment : Fragment() {
                 if (selectedIndex != -1) {
                     binding.rvTimePicker.scrollToPosition(selectedIndex)
                 }
+
+                // 刷新图表
+                updateUIBySelection()
             }
         }
     }
@@ -179,21 +263,27 @@ class StatisticsFragment : Fragment() {
         val now = LocalDate.now()
         val currentYear = now.year
 
-        // 生成前后 2 年，共 5 年的数据（比如 2024, 2025, 2026, 2027, 2028）
-        for (i in -2..2) {
-            val targetYear = currentYear + i
+        // 如果没有数据，只显示本年
+        if (dataStartYear == null || dataEndYear == null) {
+            tabs.add(TimeTab("本年", currentYear, 1, true))
+            return tabs
+        }
 
+        val startYear = dataStartYear!!
+        val endYear = dataEndYear!!
+
+        // 生成从开始年份到结束年份的列表
+        for (year in startYear..endYear) {
             // 逻辑处理显示文字
-            val label = when (i) {
-                0 -> "本年"
-                -1 -> "去年"
-                1 -> "明年"
-                else -> "${targetYear}年"
+            val label = when {
+                year == currentYear -> "今年"
+                year == currentYear - 1 -> "去年"
+                year == currentYear + 1 -> "明年"
+                else -> "${year}年"
             }
 
-            // 默认选中 i == 0 (本年)
-            // 这里的 month 传 1 即可，因为 getYearRange 只用到 year 字段
-            tabs.add(TimeTab(label, targetYear, 1, i == 0))
+            // 默认选中今年
+            tabs.add(TimeTab(label, year, 1, year == currentYear))
         }
         return tabs
     }
@@ -204,9 +294,6 @@ class StatisticsFragment : Fragment() {
 
         // 更新图表
         updateLineChart(filtered)
-
-        // 更新排行榜
-        updateRankingList(filtered)
     }
 
     private fun toggleBackgroundAlpha(alpha: Float) {
@@ -221,75 +308,87 @@ class StatisticsFragment : Fragment() {
     private fun initLineChart() {
         binding.lineChart.apply {
             description.isEnabled = false
-            // 这里允许触摸响应主要是为了后续的气泡显示
             setTouchEnabled(true)
-            setScaleEnabled(false) // 禁止缩放，防止和滑动冲突
+            setScaleEnabled(false)
+            isScaleXEnabled = false
+            isScaleYEnabled = false
+            setPinchZoom(false)
+            isDoubleTapToZoomEnabled = false
 
-            // 下面主要是为了防止折线图变大变小
-            setScaleEnabled(false)       // 禁用双向缩放
-            isScaleXEnabled = false      // 禁用 X 轴缩放
-            isScaleYEnabled = false      // 禁用 Y 轴缩放
-            setPinchZoom(false)          // 禁用 X、Y 轴同时缩放
-            isDoubleTapToZoomEnabled = false // 【重点】禁用双击缩放
+            isDragEnabled = true
+            isHighlightPerDragEnabled = true // 启用拖拽时自动高亮
 
-            isDragEnabled = false        // 禁用拖拽平移
+            // 气泡隐藏任务
+            val hideMarkerRunnable = Runnable {
+                highlightValue(null)
+            }
+
+            // 添加手势监听器
+            setOnChartGestureListener(object : com.github.mikephil.charting.listener.OnChartGestureListener {
+
+                override fun onChartGestureStart(
+                    me: android.view.MotionEvent?,
+                    lastPerformedGesture: com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture?
+                ) {
+                    // 触摸开始，取消隐藏任务
+                    post { removeCallbacks(hideMarkerRunnable) }
+                }
+
+                override fun onChartGestureEnd(
+                    me: android.view.MotionEvent?,
+                    lastPerformedGesture: com.github.mikephil.charting.listener.ChartTouchListener.ChartGesture?
+                ) {
+                    // 触摸结束，2秒后隐藏气泡
+                    postDelayed(hideMarkerRunnable, 2000L)
+                }
+
+                override fun onChartLongPressed(me: android.view.MotionEvent?) {
+                    // 长按时，取消隐藏任务
+                    post { removeCallbacks(hideMarkerRunnable) }
+                }
+
+                override fun onChartDoubleTapped(me: android.view.MotionEvent?) {}
+
+                override fun onChartSingleTapped(me: android.view.MotionEvent?) {}
+
+                override fun onChartFling(
+                    me1: android.view.MotionEvent?,
+                    me2: android.view.MotionEvent?,
+                    velocityX: Float,
+                    velocityY: Float
+                ) {
+                }
+
+                override fun onChartScale(me: android.view.MotionEvent?, scaleX: Float, scaleY: Float) {}
+
+                override fun onChartTranslate(me: android.view.MotionEvent?, dX: Float, dY: Float) {
+                    // 滑动时，实时高亮最近的数据点
+                    me?.let {
+                        val highlight = getHighlightByTouchPoint(it.x, it.y)
+                        if (highlight != null) {
+                            highlightValue(highlight)
+                        }
+                    }
+                }
+            })
 
             // X轴的相关配置
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
                 labelRotationAngle = -45f
-
-                granularity = 1f // 确保每个标签都显示
-                textSize = 10f   // 根据需要微调字体大小
+                granularity = 1f
+                textSize = 10f
                 textColor = Color.parseColor("#999999")
             }
 
-            axisRight.isEnabled = false // 隐藏右轴
-            // 调整左边的那根竖轴线
+            axisRight.isEnabled = false
             axisLeft.apply {
                 setDrawAxisLine(false)
                 enableGridDashedLine(10f, 10f, 0f)
             }
-            // 为日期文字腾出位置空间
-            setExtraOffsets(0f,0f,0f,30f)
+            setExtraOffsets(0f, 120f, 0f, 30f)
         }
-    }
-
-    private fun updateRankingList(records: List<Record>) {
-        // 1. 筛选出“支出”类型的账单 (假设 type == 0 是支出)
-        val expenseRecords = records.filter { it.type == 0 }
-
-        // 2. 计算支出的总金额（用于计算每个分类占的百分比）
-        val totalAmount = expenseRecords.sumOf {
-            it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
-        }
-
-        // 3. 按“分类名称”分组，并计算每个分类的总和
-        val rankingItems = expenseRecords.groupBy { it.categoryName }
-            .map { (categoryName, list) ->
-                // 计算该分类的总支出
-                val categorySum = list.sumOf {
-                    it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
-                }
-
-                // 计算百分比 (分类额 / 总额 * 100)
-                val percent = if (totalAmount > java.math.BigDecimal.ZERO) {
-                    categorySum.divide(totalAmount, 4, java.math.RoundingMode.HALF_UP).toFloat() * 100
-                } else 0f
-
-                // 创建适配器需要的 RankingItem 对象
-                RankingItem(
-                    icon = list.first().categoryIcon, // 拿到该分类的图标名
-                    name = categoryName,
-                    amount = categorySum.toString(),
-                    percent = percent
-                )
-            }
-            .sortedByDescending { it.amount.toBigDecimal() } // 按金额从大到小排序
-
-        // 4. 将计算好的列表交给适配器
-        rankingAdapter.submitList(rankingItems)
     }
 
     private fun observeData() {
@@ -298,50 +397,226 @@ class StatisticsFragment : Fragment() {
                 // 1. 先把全量数据存起来
                 allRecords = records
 
-                // 2. 只有在有数据的时候才去更新 UI
+                // 2. 检查时间范围是否变化
+                val minTimestamp = records.minOfOrNull { it.timestamp }
+                val maxTimestamp = records.maxOfOrNull { it.timestamp }
+
+                val timeRangeChanged = minTimestamp != dataStartTimestamp || maxTimestamp != dataEndTimestamp
+
+                // 3. 更新时间范围标记
+                dataStartTimestamp = minTimestamp
+                dataEndTimestamp = maxTimestamp
+
+                // 4. 如果时间范围变化了，重新加载时间选择器
+                if (timeRangeChanged && records.isNotEmpty()) {
+                    loadTimeRange {
+                        // 时间选择器已更新，恢复当前选中状态
+                        updateTimePickerSelection()
+                    }
+                }
+
+                // 5. 更新图表
                 if (allRecords.isNotEmpty()) {
                     updateUIBySelection()
                 } else {
                     binding.lineChart.clear()
-                    rankingAdapter.submitList(emptyList())
+                    binding.layoutEmptyChart.visibility = View.VISIBLE
+                    binding.lineChart.visibility = View.GONE
                 }
             }
         }
     }
 
-    private fun updateLineChart(records: List<Record>) {
-        // 1. 这里的 records 已经是 updateUIBySelection 过滤后的单类型数据了
-        val allDates = records.map { it.dateStr }.distinct().sorted()
+//    private fun updateLineChart(records: List<Record>) {
+//        // 1. 这里的 records 已经是 updateUIBySelection 过滤后的单类型数据了
+//        val allDates = records.map { it.dateStr }.distinct().sorted()
+//
+//        if (allDates.isEmpty()) {
+//            binding.lineChart.clear()
+//            binding.layoutEmptyChart.visibility = View.VISIBLE
+//            binding.lineChart.visibility = View.GONE
+//            return
+//        }
+//
+//        // 有数据时显示图表
+//        binding.layoutEmptyChart.visibility = View.GONE
+//        binding.lineChart.visibility = View.VISIBLE
+//
+//        val entries = ArrayList<Entry>()
+//        val dateLabels = ArrayList<String>()
+//
+//        var sum = 0f
+//        allDates.forEachIndexed { index, date ->
+//            // 2. 直接计算当前日期下的所有金额总和（因为类型已经过滤过了）
+//            val daySum = records.filter { it.dateStr == date }
+//                .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }.toFloat()
+//
+//            sum+=daySum
+//            entries.add(Entry(index.toFloat(), daySum))
+//            dateLabels.add(date.split(" ")[0])
+//        }
+//
+//        // 设置总金额
+//        binding.tvTotalLabel.text = if (currentType == 0) "总支出：${sum}" else "总收入：${sum}"
+//        // 先获取当前月份的天数
+//        val lengthOfMonth = YearMonth.of(selectedYear, selectedMonth).lengthOfMonth()
+//        // 设置平均值
+//        binding.tvAverageLabel.text = if (currentPeriodMode == 0) {
+//            "平均值：%.2f".format(sum.toDouble() / lengthOfMonth)
+//        } else {
+//            "总收入：%.2f".format(sum.toDouble() / 12)
+//        }
+//
+//        // 3. 根据 currentType 设置不同的样式
+//        val label = if (currentType == 0) "支出" else "收入"
+//        val themeColor = if (currentType == 0) "#FF4081" else "#4CAF50"
+//
+//        val dataSet = LineDataSet(entries, label).apply {
+//            color = Color.parseColor(themeColor)
+//            setCircleColor(Color.parseColor(themeColor))
+//            lineWidth = 2.5f
+//            circleRadius = 4f
+//            mode = LineDataSet.Mode.LINEAR
+//        }
+//
+//        binding.lineChart.data = LineData(dataSet)
+//
+//        val marker = CustomMarkerView(
+//            context = requireContext(),
+//            dateLabels = allDates,     // 传入“密码本”
+//            allRecords = allRecords,   // 传入“原始数据库记录”
+//            currentType = currentType  // 传入当前是支出还是收入
+//        )
+//
+//        // 之所以先将图表传给气泡是为了防止待会气泡溢出边界
+//        marker.chartView = binding.lineChart
+//        // 设置图表气泡内容
+//        binding.lineChart.marker = marker
+//
+//        // X 轴配置保持不变
+//        binding.lineChart.xAxis.apply {
+//            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+//                override fun getFormattedValue(value: Float): String {
+//                    return dateLabels.getOrNull(value.toInt()) ?: ""
+//                }
+//            }
+//        }
+//
+//        binding.lineChart.animateX(800, Easing.EaseInOutQuart)
+//    }
+
+    private fun updateLineChart(records: List<Record>)
+    {
+        if (currentPeriodMode == 0) {
+            updateLineChartByMonth(records)
+        } else {
+            updateLineChartByYear(records)
+        }
+    }
+
+    private fun updateLineChartByMonth(records:
+                                       List<Record>) {
+        val allDates = records.map { it.dateStr
+        }.distinct().sorted()
+
+        if (allDates.isEmpty()) {
+            binding.lineChart.clear()
+            binding.layoutEmptyChart.visibility =
+                View.VISIBLE
+            binding.lineChart.visibility = View.GONE
+            return
+        }
+
+        binding.layoutEmptyChart.visibility = View.GONE
+        binding.lineChart.visibility = View.VISIBLE
+
         val entries = ArrayList<Entry>()
         val dateLabels = ArrayList<String>()
-
         var sum = 0f
-        allDates.forEachIndexed { index, date ->
-            // 2. 直接计算当前日期下的所有金额总和（因为类型已经过滤过了）
-            val daySum = records.filter { it.dateStr == date }
-                .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }.toFloat()
 
-            sum+=daySum
+        allDates.forEachIndexed { index, date ->
+            val daySum = records.filter { it.dateStr ==
+                    date }
+                .sumOf { it.amount.toBigDecimalOrNull()
+                    ?: java.math.BigDecimal.ZERO }.toFloat()
+            sum += daySum
             entries.add(Entry(index.toFloat(), daySum))
             dateLabels.add(date.split(" ")[0])
         }
 
-        // 设置总金额
-        binding.tvTotalLabel.text = sum.toString()
-        // 设置平均值
+        binding.tvTotalLabel.text = if (currentType ==
+            0) "总支出：${sum}" else "总收入：${sum}"
+        val lengthOfMonth = YearMonth.of(selectedYear,
+            selectedMonth).lengthOfMonth()
+        binding.tvAverageLabel.text =
+            "平均值：%.2f".format(sum.toDouble() /
+                    lengthOfMonth)
 
+        updateChartData(entries, dateLabels, sum,
+            allRecords)
+    }
 
-        if (allDates.isEmpty()) {
+    private fun updateLineChartByYear(records:
+                                      List<Record>) {
+        val monthGroups = records.groupBy {
+            val localDate =
+                Instant.ofEpochMilli(it.timestamp)
+
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+            localDate.monthValue
+        }
+
+        val allMonths = (1..12).toList()
+
+        if (monthGroups.isEmpty()) {
             binding.lineChart.clear()
+            binding.layoutEmptyChart.visibility =
+                View.VISIBLE
+            binding.lineChart.visibility = View.GONE
             return
         }
 
-        // 3. 根据 currentType 设置不同的样式
-        val label = if (currentType == 0) "支出" else "收入"
-        val themeColor = if (currentType == 0) "#FF4081" else "#4CAF50"
+        binding.layoutEmptyChart.visibility = View.GONE
+        binding.lineChart.visibility = View.VISIBLE
 
-        val dataSet = LineDataSet(entries, label).apply {
+        val entries = ArrayList<Entry>()
+        val dateLabels = ArrayList<String>()
+        var sum = 0f
+
+        allMonths.forEachIndexed { index, month ->
+            val monthSum = monthGroups[month]?.sumOf {
+                it.amount.toBigDecimalOrNull() ?:
+                java.math.BigDecimal.ZERO
+            }?.toFloat() ?: 0f
+            sum += monthSum
+            entries.add(Entry(index.toFloat(),
+                monthSum))
+            dateLabels.add("${month}月")
+        }
+
+        binding.tvTotalLabel.text = if (currentType ==
+            0) "总支出：${sum}" else "总收入：${sum}"
+        binding.tvAverageLabel.text =
+            "平均值：%.2f".format(sum.toDouble() / 12)
+
+        updateChartData(entries, dateLabels, sum,
+            records)
+    }
+
+    private fun updateChartData(
+        entries: ArrayList<Entry>,
+        dateLabels: ArrayList<String>,
+        sum: Float,
+        records: List<Record>
+    ) {
+        val label = if (currentType == 0) "支出" else
+            "收入"
+        val themeColor = if (currentType == 0)
+            "#FF4081" else "#4CAF50"
+
+        val dataSet = LineDataSet(entries, label).apply{
             color = Color.parseColor(themeColor)
+
             setCircleColor(Color.parseColor(themeColor))
             lineWidth = 2.5f
             circleRadius = 4f
@@ -352,16 +627,14 @@ class StatisticsFragment : Fragment() {
 
         val marker = CustomMarkerView(
             context = requireContext(),
-            dateLabels = allDates,     // 传入“密码本”
-            allRecords = allRecords,   // 传入“原始数据库记录”
-            currentType = currentType  // 传入当前是支出还是收入
+            dateLabels = dateLabels,
+            allRecords = records,
+            currentType = currentType
         )
 
-        // 3. 将其关联到图表实例
         marker.chartView = binding.lineChart
         binding.lineChart.marker = marker
 
-        // 4. X 轴配置保持不变
         binding.lineChart.xAxis.apply {
             valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
@@ -370,7 +643,8 @@ class StatisticsFragment : Fragment() {
             }
         }
 
-        binding.lineChart.animateX(800, Easing.EaseInOutQuart)
+        binding.lineChart.animateX(800,
+            Easing.EaseInOutQuart)
     }
 
     // 记得销毁 Binding 防止内存泄露

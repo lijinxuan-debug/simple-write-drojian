@@ -120,34 +120,29 @@ class CustomMarkerView(
         }
         mOffset.x = xOffset
 
-        // --- Y轴 避障计算 (上下) ---
-        // 默认在上方：向上移动一整个高度 + 一点间隙
-        val spacing = 20f // 气泡距离圆点的间隙
-        var yOffset = -mHeight - spacing
+        // --- Y轴：始终显示在圆圈上方 ---
+        // 向上移动一整个高度 + 小间隙
+        val spacing = 8f // 气泡距离圆点的间隙
+        val yOffset = -mHeight - spacing
 
-        // 判断上方空间是否足够 (posY 是圆点距离顶部的距离)
-        if (posY + yOffset < 0) {
-            // 上方空间不足，气泡翻转到圆点下方
-            yOffset = spacing + 10f // 10f 是考虑到圆点本身的大小，往下挪一点
+        // 如果上方空间不足，强制留出顶部内边距（不要翻转）
+        val topPadding = 16f
+        if (posY + yOffset < topPadding) {
+            // 空间不足时，让气泡顶部对齐 topPadding
+            mOffset.y = topPadding - posY
+        } else {
+            mOffset.y = yOffset
         }
-        mOffset.y = yOffset
 
         // --- 记录这个偏移，供箭头旋转/平移使用 ---
-        // 计算气泡框被“挤压”了多少，让箭头去补偿
+        // 计算气泡框被”挤压”了多少，让箭头去补偿
         // 正常的居中偏移应该是 -mWidth/2，现在的偏移是 xOffset
         val arrowCorrection = xOffset - (-mWidth / 2f)
         binding.vMarkerArrow.translationX = -arrowCorrection
 
-        // 如果气泡翻转到了下方，箭头也得反转 (可选)
-        if (yOffset > 0) {
-            binding.vMarkerArrow.rotation = 180f
-
-            val arrowSize = 12f * context.resources.displayMetrics.density
-            binding.vMarkerArrow.translationY = -mHeight - arrowSize
-        } else {
-            binding.vMarkerArrow.rotation = 0f
-            binding.vMarkerArrow.translationY = 0f
-        }
+        // 始终保持箭头朝下
+        binding.vMarkerArrow.rotation = 0f
+        binding.vMarkerArrow.translationY = 0f
 
         return mOffset
     }

@@ -6,8 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.accounting.data.database.AppDatabase
-import com.example.accounting.data.model.AccountItem
-import com.example.accounting.data.model.CategoryItem
 import com.example.accounting.data.model.Record
 import com.example.accounting.data.model.RecordListItem
 import com.example.accounting.utils.CategoryAndAccountData
@@ -204,6 +202,19 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
         statsMode.value = mode
         statsYear.value = year
         statsMonth.value = month
+    }
+
+    /**
+     * 获取用户账单的时间范围信息
+     * @param userId 用户ID
+     * @return Pair<最早时间戳, 最晚时间戳>，如果没有数据返回 null
+     */
+    suspend fun getTimeRangeInfo(userId: Long): Pair<Long, Long>? {
+        val minTimestamp = recordDao.getMinTimestamp(userId)
+        val maxTimestamp = recordDao.getMaxTimestamp(userId)
+        return if (minTimestamp != null && maxTimestamp != null) {
+            Pair(minTimestamp, maxTimestamp)
+        } else null
     }
 
     /**
