@@ -15,15 +15,6 @@ import com.example.accounting.databinding.ItemTimePickerBinding
 class TimePickerAdapter(
     private val onItemSelected: (TimeTab) -> Unit
 ) : ListAdapter<TimeTab, TimePickerAdapter.ViewHolder>(TimeTabDiffCallback()) {
-
-    // 内部维护选中的位置，用于 UI 表现
-    private var selectedPosition = -1
-
-    // 重置选中位置（切换月/年时调用）
-    fun resetSelectedPosition() {
-        selectedPosition = -1
-    }
-
     class ViewHolder(val binding: ItemTimePickerBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -38,13 +29,8 @@ class TimePickerAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
 
-        // 加载的时候查看是否被选中
-        if (item.isSelected && selectedPosition == -1) {
-            selectedPosition = holder.bindingAdapterPosition
-        }
-
         // 状态表现逻辑
-        val isSelected = position == selectedPosition
+        val isSelected = item.isSelected
 
         holder.binding.tvMonthItem.apply {
             text = item.label
@@ -68,13 +54,11 @@ class TimePickerAdapter(
         holder.binding.root.setOnClickListener {
             val currentPos = holder.bindingAdapterPosition
             // 保证位置存在以及不是重复点同一年（月）
-            if (currentPos != RecyclerView.NO_POSITION && currentPos != selectedPosition) {
-                val oldPos = selectedPosition
-                selectedPosition = currentPos
-
-                // DiffUtil 配合这些手动刷新可以实现精准的点击动画
-                notifyItemChanged(oldPos)
-                notifyItemChanged(selectedPosition)
+            if (currentPos != RecyclerView.NO_POSITION && !item.isSelected) {
+                val newList = currentList.mapIndexed { index, timeTab ->
+                    timeTab.copy(isSelected = (index == currentPos))
+                }
+                submitList(newList)
 
                 smartScrollToCenter(holder.binding.root, currentPos)
                 onItemSelected(item)

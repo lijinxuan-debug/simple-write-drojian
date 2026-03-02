@@ -6,8 +6,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.accounting.data.database.AppDatabase
+import com.example.accounting.data.model.BillDateState
 import com.example.accounting.data.model.Record
 import com.example.accounting.data.model.RecordListItem
+import com.example.accounting.data.model.StatesState
 import com.example.accounting.utils.CategoryAndAccountData
 import com.example.accounting.utils.SpUtil
 import kotlinx.coroutines.Dispatchers
@@ -69,16 +71,14 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     private val formater = DecimalFormat("#,##0.00")
 
-    private val currentYear = MutableStateFlow(LocalDate.now().year)
-    private val currentMonth = MutableStateFlow(LocalDate.now().monthValue)
+    private val billDateState = MutableStateFlow(BillDateState(LocalDate.now().year, LocalDate.now().monthValue))
 
     // 1. 先定义一个内部私有的原始流，它是所有数据的源头
     @OptIn(ExperimentalCoroutinesApi::class)
-    val rawRecordsFlow: Flow<List<Record>> = combine(currentYear, currentMonth) { year, month ->
-        getMonthRange(year, month)
-    }.flatMapLatest { (startTime, endTime) ->
-        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), startTime, endTime)
-    }.distinctUntilChanged() // 只有当数据库内容真正改变时才触发下游
+    val rawRecordsFlow: Flow<List<Record>> = billDateState.flatMapLatest { state ->
+        val monthRange = getMonthRange(state.currentYear,state.currentMonth)
+        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), monthRange.first, monthRange.second)
+    }.distinctUntilChanged() // 只有当数据库内容真正改变时（这里特指在时间范围的数据，虽然会执行查询，但是他会拦截，防止下游UI进行不必要的刷新）才触发下游
 
     // 2. 专门给 RecyclerView 使用的流（带 Header）
     val monthRecords: Flow<List<RecordListItem>> = rawRecordsFlow.map { records ->
@@ -109,8 +109,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun changeDate(year: Int, month: Int) {
-        currentYear.value = year
-        currentMonth.value = month
+        billDateState.value = BillDateState(year,month)
     }
 
     // 更新金额的方法
@@ -185,37 +184,34 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
         return Pair(start, end)
     }
 
-    val statsYear = MutableStateFlow(2026)
-    val statsMonth = MutableStateFlow(2)
-    val statsMode = MutableStateFlow(0)
+    val statesState = MutableStateFlow(
+        StatesState(
+            0,
+            LocalDate.now().year,
+            LocalDate.now().monthValue
+        )
+    )
 
-    // 专门用来用到使用栏这一块的
+    // 专门用来用到使用栏这一块的（获取当前选中这一个月的账单数据）
     @OptIn(ExperimentalCoroutinesApi::class)
-    val statsRecordsFlow: Flow<List<Record>> = combine(statsYear, statsMonth, statsMode) { y, m, mode ->
-        if (mode == 0) getMonthRange(y, m) else getYearRange(y)
-    }.flatMapLatest { (start, end) ->
-        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), start, end)
+    val statsRecordsFlow: Flow<List<Record>> = statesState.flatMapLatest { state ->
+        val range = if (state.mode == 0) getMonthRange(state.year, state.month)
+        else getYearRange(state.year)
+
+        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), range.first, range.second)
     }.distinctUntilChanged()
 
     // 独立的切换方法
     fun changeStatsDate(year: Int, month: Int, mode: Int) {
-        statsMode.value = mode
-        statsYear.value = year
-        statsMonth.value = month
+        statesState.value = StatesState(mode,year,month)
     }
 
-    /**
-     * 获取用户账单的时间范围信息
-     * @param userId 用户ID
-     * @return Pair<最早时间戳, 最晚时间戳>，如果没有数据返回 null
-     */
-    suspend fun getTimeRangeInfo(userId: Long): Pair<Long, Long>? {
-        val minTimestamp = recordDao.getMinTimestamp(userId)
-        val maxTimestamp = recordDao.getMaxTimestamp(userId)
-        return if (minTimestamp != null && maxTimestamp != null) {
-            Pair(minTimestamp, maxTimestamp)
-        } else null
-    }
+    // 暴露给 Fragment 的时间范围流
+    val timeRangeFlow: Flow<Pair<Long, Long>?> = recordDao.getMinTimestampFlow(SpUtil.getUserId(application))
+        .combine(recordDao.getMaxTimestampFlow(SpUtil.getUserId(application))) { min, max ->
+            if (min != null && max != null) Pair(min, max) else null
+        }
+        .distinctUntilChanged() // 只有时间戳真正变了（比如删了最早的记录），才会发新值
 
     /**
      * 编辑完将账单保存到room数据库

@@ -45,7 +45,10 @@ class StatisticsFragment : Fragment() {
 
     // 存储当前选中的年/月（用于恢复选中状态）
     private var selectedYear = LocalDate.now().year
-    private var selectedMonth = LocalDate.now().monthValue
+    private var selectedMonth = 1
+
+    private var selectedYearOfMonth = LocalDate.now().year
+    private var selectedMonthOfMonth = LocalDate.now().monthValue
 
     // 存储时间范围信息
     private var dataStartYear: Int? = null
@@ -69,9 +72,9 @@ class StatisticsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // 先获取时间范围信息，再初始化时间选择器
-        loadTimeRange {
-            initTimePicker()
-        }
+
+        initTimePicker()
+
 
         // 初始化图表的样式（关掉网格、右轴等）
         initLineChart()
@@ -81,27 +84,6 @@ class StatisticsFragment : Fragment() {
 
         binding.tvTypeSelector.setOnClickListener {
             showTypePopup()
-        }
-    }
-
-    /**
-     * 获取当前的所有数据的起始结束时间
-     */
-    private fun loadTimeRange(onComplete: () -> Unit) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val timeRange = viewModel.getTimeRangeInfo(SpUtil.getUserId(requireContext()))
-            if (timeRange != null) {
-                val minDate = Instant.ofEpochMilli(timeRange.first)
-                    .atZone(ZoneId.systemDefault()).toLocalDate()
-                val maxDate = Instant.ofEpochMilli(timeRange.second)
-                    .atZone(ZoneId.systemDefault()).toLocalDate()
-                dataStartYear = minDate.year
-                dataStartMonth = minDate.monthValue
-                dataEndYear = maxDate.year
-                dataEndMonth = maxDate.monthValue
-            }
-            // 时间范围加载完成后执行回调
-            onComplete()
         }
     }
 
@@ -116,7 +98,7 @@ class StatisticsFragment : Fragment() {
 
         // 滚动到当前选中项
         binding.rvTimePicker.post {
-            val selectedIndex = newList.indexOfFirst { it.year == selectedYear && it.month == selectedMonth }
+            val selectedIndex = newList.indexOfFirst { (it.year == selectedYear && it.month == selectedMonth) || (it.year == selectedYearOfMonth && it.month == selectedMonthOfMonth) }
             if (selectedIndex != -1) {
                 binding.rvTimePicker.scrollToPosition(selectedIndex)
             }
@@ -204,8 +186,8 @@ class StatisticsFragment : Fragment() {
                 else -> "${String.format("%02d", m)}月" // 同年显示 03月 这种格式
             }
 
-            // 默认选中当前月份
-            tabs.add(TimeTab(label, y, m, y == currentYear && m == currentMonth))
+            // 默认选中当前月份（如果已经有了则选择已经选中的月份）
+            tabs.add(TimeTab(label, y, m, m == selectedMonthOfMonth && y == selectedYearOfMonth))
         }
         return tabs
     }
@@ -215,8 +197,12 @@ class StatisticsFragment : Fragment() {
      */
     private fun initTimePicker() {
         val timeAdapter = TimePickerAdapter { selectedTab ->
-            selectedYear = selectedTab.year
-            selectedMonth = selectedTab.month
+            if (currentPeriodMode == 0) {
+                selectedYearOfMonth = selectedTab.year
+                selectedMonthOfMonth = selectedTab.month
+            } else {
+                selectedYear = selectedTab.year
+            }
             viewModel.changeStatsDate(selectedTab.year, selectedTab.month, currentPeriodMode)
         }
 
@@ -241,9 +227,6 @@ class StatisticsFragment : Fragment() {
                 // 查看是当前选中的是月份还是年份
                 currentPeriodMode = if (checkedId == binding.btnMonth.id) 0 else 1
 
-                // 重置选中位置，避免索引冲突
-                timeAdapter.resetSelectedPosition()
-
                 val newList = if (currentPeriodMode == 0) getDynamicMonthList() else getDynamicYearList()
                 timeAdapter.submitList(newList)
 
@@ -252,8 +235,12 @@ class StatisticsFragment : Fragment() {
                     binding.rvTimePicker.scrollToPosition(selectedIndex)
                 }
 
-                // 刷新图表
-                updateUIBySelection()
+                // 根据当前模式，获取对应模式下应该查询的年、月
+                val targetYear = if (currentPeriodMode == 0) selectedYearOfMonth else selectedYear
+                val targetMonth = if (currentPeriodMode == 0) selectedMonthOfMonth else 1 // 年模式下传1即可（有ViewModel保险）
+
+                // 通知 ViewModel 去查数据库
+                viewModel.changeStatsDate(targetYear, targetMonth, currentPeriodMode)
             }
         }
     }
@@ -282,8 +269,8 @@ class StatisticsFragment : Fragment() {
                 else -> "${year}年"
             }
 
-            // 默认选中今年
-            tabs.add(TimeTab(label, year, 1, year == currentYear))
+            // 默认选中今年（已经选择了则对等于selectedYear）
+            tabs.add(TimeTab(label, year, 1, year == selectedYear))
         }
         return tabs
     }
@@ -392,30 +379,32 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun observeData() {
+        // 任务 A：观察时间范围的变化（更新顶部的滚轮/选择器）
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.timeRangeFlow.collect { range ->
+                if (range != null) {
+                    // 1. 解析时间
+                    val minDate = Instant.ofEpochMilli(range.first)
+                        .atZone(ZoneId.systemDefault()).toLocalDate()
+                    val maxDate = Instant.ofEpochMilli(range.second)
+                        .atZone(ZoneId.systemDefault()).toLocalDate()
+
+                    // 2. 更新范围变量
+                    dataStartYear = minDate.year
+                    dataStartMonth = minDate.monthValue
+                    dataEndYear = maxDate.year
+                    dataEndMonth = maxDate.monthValue
+
+                    // 3. 刷新时间选择器（比如数据从2024增加到了2025，选择器要多出一项）
+                    updateTimePickerSelection()
+                }
+            }
+        }
+
+        // 任务 B：观察账单记录的变化（更新中间的图表）
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.statsRecordsFlow.collect { records ->
-                // 1. 先把全量数据存起来
                 allRecords = records
-
-                // 2. 检查时间范围是否变化
-                val minTimestamp = records.minOfOrNull { it.timestamp }
-                val maxTimestamp = records.maxOfOrNull { it.timestamp }
-
-                val timeRangeChanged = minTimestamp != dataStartTimestamp || maxTimestamp != dataEndTimestamp
-
-                // 3. 更新时间范围标记
-                dataStartTimestamp = minTimestamp
-                dataEndTimestamp = maxTimestamp
-
-                // 4. 如果时间范围变化了，重新加载时间选择器
-                if (timeRangeChanged && records.isNotEmpty()) {
-                    loadTimeRange {
-                        // 时间选择器已更新，恢复当前选中状态
-                        updateTimePickerSelection()
-                    }
-                }
-
-                // 5. 更新图表
                 if (allRecords.isNotEmpty()) {
                     updateUIBySelection()
                 } else {
@@ -546,8 +535,8 @@ class StatisticsFragment : Fragment() {
 
         binding.tvTotalLabel.text = if (currentType ==
             0) "总支出：${sum}" else "总收入：${sum}"
-        val lengthOfMonth = YearMonth.of(selectedYear,
-            selectedMonth).lengthOfMonth()
+        val lengthOfMonth = YearMonth.of(selectedYearOfMonth,
+            selectedMonthOfMonth).lengthOfMonth()
         binding.tvAverageLabel.text =
             "平均值：%.2f".format(sum.toDouble() /
                     lengthOfMonth)

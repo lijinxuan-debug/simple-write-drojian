@@ -30,11 +30,11 @@ interface RecordDao {
      * 查询当前用户所有记录的最早时间戳
      */
     @Query("SELECT MIN(timestamp) FROM records WHERE userId = :userId")
-    suspend fun getMinTimestamp(userId: Long): Long?
+    fun getMinTimestampFlow(userId: Long): Flow<Long?>
 
     /**
      * 查询当前用户所有记录的最晚时间戳
      */
     @Query("SELECT MAX(timestamp) FROM records WHERE userId = :userId")
-    suspend fun getMaxTimestamp(userId: Long): Long?
+    fun getMaxTimestampFlow(userId: Long): Flow<Long?>
 }
