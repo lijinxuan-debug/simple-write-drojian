@@ -9,7 +9,7 @@ import com.example.accounting.data.model.User
 interface UserDao {
     // 插入新用户
     @Insert
-    suspend fun registerUser(user: User)
+    suspend fun registerUser(user: User): Long
 
     // 根据邮箱查询用户（注册前检查邮箱是否被占用）
     @Query("SELECT * FROM users WHERE email = :email")
@@ -18,5 +18,8 @@ interface UserDao {
     // 根据用户ID查询用户
     @Query("SELECT * FROM users WHERE id = :id")
     suspend fun getUserById(id: Long): User?
+
+    @Query("UPDATE users set avatar = :avatar WHERE id = :id")
+    suspend fun updateAvatarById(avatar: String,id: Long): Int
 
 }

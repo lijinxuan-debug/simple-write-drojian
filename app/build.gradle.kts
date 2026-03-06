@@ -22,6 +22,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    packaging {
+        resources {
+            // 排除掉 POI 中重复的或 Android 不需要的文件
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE*"
+            excludes += "/META-INF/NOTICE*"
+            excludes += "/META-INF/AL2.0"
+            excludes += "/META-INF/LGPL2.1"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -62,4 +73,10 @@ dependencies {
     implementation(libs.google.gson)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.mp.android.chart)
+    implementation(libs.okhttp)
+    implementation(libs.poi.ooxml)
+    implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.refresh.layout.kernel)
+    implementation(libs.refresh.header.classics)
+    implementation(libs.refresh.footer.classics)
 }

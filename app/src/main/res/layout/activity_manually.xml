@@ -83,7 +83,7 @@
             android:layout_centerVertical="true"
             android:layout_marginEnd="16dp"
             android:text="@string/save"
-            android:textColor="@color/white"
+            android:textColor="@color/selector_save_text"
             android:textSize="18sp" />
 
     </RelativeLayout>
@@ -115,7 +115,7 @@
             android:layout_marginEnd="8dp"
             android:background="@drawable/bg_edit_button_white"
             android:gravity="center"
-            android:text="删除"
+            android:text="@string/delete"
             android:textColor="#E0A36B"
             android:textSize="16sp" />
 
@@ -127,9 +127,12 @@
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_edit_button_orange"
             android:gravity="center"
-            android:text="完成"
+            android:text="@string/success"
             android:textColor="@color/white"
-            android:textSize="16sp" />
+            android:textSize="16sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground"/>
 
     </LinearLayout>
 

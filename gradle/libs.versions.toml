@@ -1,7 +1,7 @@
 [versions]
 agp = "8.13.2"
 kotlin = "2.0.21"
-coreKtx = "1.17.0"
+coreKtx = "1.12.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
@@ -18,6 +18,10 @@ ksp = "2.0.21-1.0.27"
 gson = "2.10.1"
 lifecycle = "2.6.2"
 mpAndroidChart = "v3.1.0"
+okhttp = "4.12.0"
+poi = "5.2.3"
+swiperefreshlayout = "1.1.0"
+smartRefresh = "2.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +42,12 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycle" }
 mp-android-chart = { group = "com.github.philjay", name = "MPAndroidChart", version.ref = "mpAndroidChart" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "poi" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
+refresh-layout-kernel = { group = "io.github.scwang90", name = "refresh-layout-kernel", version.ref = "smartRefresh" }
+refresh-header-classics = { group = "io.github.scwang90", name = "refresh-header-classics", version.ref = "smartRefresh" }
+refresh-footer-classics = { group = "io.github.scwang90", name = "refresh-footer-classics", version.ref = "smartRefresh" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

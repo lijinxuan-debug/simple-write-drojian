@@ -14,7 +14,7 @@ import com.example.accounting.data.model.Record
 import com.example.accounting.data.model.TimeTab
 import com.example.accounting.databinding.FragmentStatisticsBinding
 import com.example.accounting.databinding.LayoutTypePopupBinding
-import com.example.accounting.utils.SpUtil
+import com.example.accounting.utils.WanValueFormatter
 import com.example.accounting.viewmodel.BillViewModel
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.components.XAxis
@@ -72,9 +72,7 @@ class StatisticsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // 先获取时间范围信息，再初始化时间选择器
-
         initTimePicker()
-
 
         // 初始化图表的样式（关掉网格、右轴等）
         initLineChart()
@@ -106,13 +104,12 @@ class StatisticsFragment : Fragment() {
     }
 
     private fun showTypePopup() {
-        // 1. 使用 View Binding 加载布局
-        // 假设你的布局文件名是 layout_type_popup.xml
+        // 使用 View Binding 加载布局
         val popupBinding = LayoutTypePopupBinding.inflate(layoutInflater)
 
-        // 2. 创建 PopupWindow
+        // 创建 PopupWindow
         val popupWindow = PopupWindow(
-            popupBinding.root, // 使用 binding.root 获取根 View
+            popupBinding.root,
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
             true
@@ -144,12 +141,13 @@ class StatisticsFragment : Fragment() {
             }
         }
 
-        // 7. 背景变暗处理
+        // 背景变暗处理
         toggleBackgroundAlpha(0.7f)
+        // 上拉窗取消了则取消变暗，恢复原状
         popupWindow.setOnDismissListener { toggleBackgroundAlpha(1.0f) }
 
-        // 8. 弹出
-        popupWindow.showAsDropDown(binding.tvTypeSelector)
+        // 依附对象弹出
+        popupWindow.showAsDropDown(binding.headerLayout)
     }
 
     private fun getDynamicMonthList(): List<TimeTab> {
@@ -371,15 +369,19 @@ class StatisticsFragment : Fragment() {
 
             axisRight.isEnabled = false
             axisLeft.apply {
+                valueFormatter = WanValueFormatter()
                 setDrawAxisLine(false)
                 enableGridDashedLine(10f, 10f, 0f)
+                // 强制地基为0
+                axisMinimum = 0f
             }
+            // 图表偏移量
             setExtraOffsets(0f, 120f, 0f, 30f)
         }
     }
 
     private fun observeData() {
-        // 任务 A：观察时间范围的变化（更新顶部的滚轮/选择器）
+        // 任务 A：观察支出时间范围的变化（更新顶部的滚轮/选择器）
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.timeRangeFlow.collect { range ->
                 if (range != null) {
@@ -416,84 +418,6 @@ class StatisticsFragment : Fragment() {
         }
     }
 
-//    private fun updateLineChart(records: List<Record>) {
-//        // 1. 这里的 records 已经是 updateUIBySelection 过滤后的单类型数据了
-//        val allDates = records.map { it.dateStr }.distinct().sorted()
-//
-//        if (allDates.isEmpty()) {
-//            binding.lineChart.clear()
-//            binding.layoutEmptyChart.visibility = View.VISIBLE
-//            binding.lineChart.visibility = View.GONE
-//            return
-//        }
-//
-//        // 有数据时显示图表
-//        binding.layoutEmptyChart.visibility = View.GONE
-//        binding.lineChart.visibility = View.VISIBLE
-//
-//        val entries = ArrayList<Entry>()
-//        val dateLabels = ArrayList<String>()
-//
-//        var sum = 0f
-//        allDates.forEachIndexed { index, date ->
-//            // 2. 直接计算当前日期下的所有金额总和（因为类型已经过滤过了）
-//            val daySum = records.filter { it.dateStr == date }
-//                .sumOf { it.amount.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }.toFloat()
-//
-//            sum+=daySum
-//            entries.add(Entry(index.toFloat(), daySum))
-//            dateLabels.add(date.split(" ")[0])
-//        }
-//
-//        // 设置总金额
-//        binding.tvTotalLabel.text = if (currentType == 0) "总支出：${sum}" else "总收入：${sum}"
-//        // 先获取当前月份的天数
-//        val lengthOfMonth = YearMonth.of(selectedYear, selectedMonth).lengthOfMonth()
-//        // 设置平均值
-//        binding.tvAverageLabel.text = if (currentPeriodMode == 0) {
-//            "平均值：%.2f".format(sum.toDouble() / lengthOfMonth)
-//        } else {
-//            "总收入：%.2f".format(sum.toDouble() / 12)
-//        }
-//
-//        // 3. 根据 currentType 设置不同的样式
-//        val label = if (currentType == 0) "支出" else "收入"
-//        val themeColor = if (currentType == 0) "#FF4081" else "#4CAF50"
-//
-//        val dataSet = LineDataSet(entries, label).apply {
-//            color = Color.parseColor(themeColor)
-//            setCircleColor(Color.parseColor(themeColor))
-//            lineWidth = 2.5f
-//            circleRadius = 4f
-//            mode = LineDataSet.Mode.LINEAR
-//        }
-//
-//        binding.lineChart.data = LineData(dataSet)
-//
-//        val marker = CustomMarkerView(
-//            context = requireContext(),
-//            dateLabels = allDates,     // 传入“密码本”
-//            allRecords = allRecords,   // 传入“原始数据库记录”
-//            currentType = currentType  // 传入当前是支出还是收入
-//        )
-//
-//        // 之所以先将图表传给气泡是为了防止待会气泡溢出边界
-//        marker.chartView = binding.lineChart
-//        // 设置图表气泡内容
-//        binding.lineChart.marker = marker
-//
-//        // X 轴配置保持不变
-//        binding.lineChart.xAxis.apply {
-//            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
-//                override fun getFormattedValue(value: Float): String {
-//                    return dateLabels.getOrNull(value.toInt()) ?: ""
-//                }
-//            }
-//        }
-//
-//        binding.lineChart.animateX(800, Easing.EaseInOutQuart)
-//    }
-
     private fun updateLineChart(records: List<Record>)
     {
         if (currentPeriodMode == 0) {
@@ -503,8 +427,8 @@ class StatisticsFragment : Fragment() {
         }
     }
 
-    private fun updateLineChartByMonth(records:
-                                       List<Record>) {
+    private fun updateLineChartByMonth(records: List<Record>) {
+        // 日期升序排列
         val allDates = records.map { it.dateStr
         }.distinct().sorted()
 
@@ -513,6 +437,10 @@ class StatisticsFragment : Fragment() {
             binding.layoutEmptyChart.visibility =
                 View.VISIBLE
             binding.lineChart.visibility = View.GONE
+            // 同时总支出和总收入也需要归零
+            binding.tvTotalLabel.text = if (currentType ==
+                0) "总支出：0.00" else "总收入：0.00"
+            binding.tvAverageLabel.text = "日平均值：0.00"
             return
         }
 
@@ -533,24 +461,26 @@ class StatisticsFragment : Fragment() {
             dateLabels.add(date.split(" ")[0])
         }
 
+        val formatted = "%.2f".format(sum)
+
         binding.tvTotalLabel.text = if (currentType ==
-            0) "总支出：${sum}" else "总收入：${sum}"
+            0) "总支出：${formatted}" else "总收入：${formatted}"
+
         val lengthOfMonth = YearMonth.of(selectedYearOfMonth,
             selectedMonthOfMonth).lengthOfMonth()
         binding.tvAverageLabel.text =
-            "平均值：%.2f".format(sum.toDouble() /
+            "日平均值：%.2f".format(sum.toDouble() /
                     lengthOfMonth)
 
         updateChartData(entries, dateLabels, sum,
             allRecords)
     }
 
-    private fun updateLineChartByYear(records:
-                                      List<Record>) {
+    private fun updateLineChartByYear(records: List<Record>) {
+        // 按照月份先进行分组，后续计算需要
         val monthGroups = records.groupBy {
             val localDate =
                 Instant.ofEpochMilli(it.timestamp)
-
                     .atZone(ZoneId.systemDefault()).toLocalDate()
             localDate.monthValue
         }
@@ -559,9 +489,10 @@ class StatisticsFragment : Fragment() {
 
         if (monthGroups.isEmpty()) {
             binding.lineChart.clear()
-            binding.layoutEmptyChart.visibility =
-                View.VISIBLE
+            binding.layoutEmptyChart.visibility = View.VISIBLE
             binding.lineChart.visibility = View.GONE
+            binding.tvTotalLabel.text = if (currentType == 0) "总支出：0.00" else "总收入：0.00"
+            binding.tvAverageLabel.text = "月平均值：0.00"
             return
         }
 
@@ -578,15 +509,19 @@ class StatisticsFragment : Fragment() {
                 java.math.BigDecimal.ZERO
             }?.toFloat() ?: 0f
             sum += monthSum
+            // 这是因为linechart不认识“1月”只认识索引。
             entries.add(Entry(index.toFloat(),
                 monthSum))
             dateLabels.add("${month}月")
         }
 
+        val formatted = "%.2f".format(sum)
+
         binding.tvTotalLabel.text = if (currentType ==
-            0) "总支出：${sum}" else "总收入：${sum}"
+            0) "总支出：${formatted}" else "总收入：${formatted}"
+
         binding.tvAverageLabel.text =
-            "平均值：%.2f".format(sum.toDouble() / 12)
+            "月平均值：%.2f".format(sum.toDouble() / 12)
 
         updateChartData(entries, dateLabels, sum,
             records)

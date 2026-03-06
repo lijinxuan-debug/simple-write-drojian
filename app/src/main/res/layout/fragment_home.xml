@@ -174,18 +174,48 @@
             android:textSize="16sp" />
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_record_list"
+    <com.scwang.smart.refresh.layout.SmartRefreshLayout
+        android:id="@+id/refreshLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+
+        app:srlEnableLoadMoreWhenContentNotFull="true"
+        app:srlEnableFooterFollowWhenNoMoreData="true"
+        app:srlEnableScrollContentWhenLoaded="false"
+        app:srlEnableScrollContentWhenRefreshed="false"
+        app:srlEnableAutoLoadMore="false"
 
         app:layout_constraintTop_toBottomOf="@id/view_header_bg"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        tools:listitem="@layout/item_bill_record" />
+        <com.scwang.smart.refresh.header.ClassicsHeader
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:srlTextPulling="下拉查看下月数据"
+            app:srlTextRelease="松开查看下月数据"
+            app:srlTextRefreshing="切换中"
+            app:srlEnableLastTime="false" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_record_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+
+            tools:listitem="@layout/item_bill_record" />
+
+        <com.scwang.smart.refresh.footer.ClassicsFooter
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:srlTextPulling="上拉查看上月数据"
+            app:srlTextRelease="松开查看上月数据"
+            app:srlTextLoading="切换中"
+            app:srlDrawableProgress="@null" />
+
+    </com.scwang.smart.refresh.layout.SmartRefreshLayout>
 
     <LinearLayout
         android:id="@+id/ll_sub_menu"

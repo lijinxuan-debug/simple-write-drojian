@@ -1,7 +1,6 @@
 package com.example.accounting.ui.statistics
 
 import android.content.Context
-import android.graphics.Canvas
 import android.view.LayoutInflater
 import com.example.accounting.R
 import com.example.accounting.data.model.Record
@@ -11,6 +10,9 @@ import com.github.mikephil.charting.components.MarkerView
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.utils.MPPointF
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class CustomMarkerView(
     context: Context,
@@ -20,6 +22,9 @@ class CustomMarkerView(
 ) : MarkerView(context, R.layout.layout_chart_marker) {
 
     private val binding = LayoutChartMarkerBinding.bind(this)
+
+    private val DATE_FORMATTER = DateTimeFormatter.ofPattern("yy/MM/dd")
+        .withZone(ZoneId.systemDefault()) // 自动适配手机当前时区
     /**
      * 每次点击圆点时，此方法都会被触发。
      */
@@ -54,7 +59,7 @@ class CustomMarkerView(
                 ivItemIcon.setImageResource(resId)
                 tvItemAmount.text = record.amount
                 tvItemRemark.text = record.remark
-                tvItemDate.text = record.dateStr.split(" ")[0]
+                tvItemDate.text = DATE_FORMATTER.format(Instant.ofEpochMilli(record.timestamp))
             }
 
             // 将指定的View添加到主容器里面
@@ -63,10 +68,13 @@ class CustomMarkerView(
         }
 
         val sum = e.y
+        // 使用 %,.2f：逗号表示千分位，.2 表示保留两位小数
+        val formattedSum = String.format("%,.2f", sum)
+
         if (currentType == 0) {
-            binding.tvMarkerTotal.text = "当日总支出：${sum}"
+            binding.tvMarkerTotal.text = "当日总支出：$formattedSum"
         } else {
-            binding.tvMarkerTotal.text = "当日总收入：${sum}"
+            binding.tvMarkerTotal.text = "当日总收入：$formattedSum"
         }
 
         measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)

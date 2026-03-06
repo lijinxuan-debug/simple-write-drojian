@@ -53,16 +53,29 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <include layout="@layout/item_profile_action" android:id="@+id/item_service" />
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp"/>
+            <include
+                android:id="@+id/item_export"
+                layout="@layout/item_profile_action" />
 
-            <include layout="@layout/item_profile_action" android:id="@+id/item_author" />
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp"/>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="16dp"
+                android:background="#F5F5F5" />
 
-            <include layout="@layout/item_profile_action" android:id="@+id/item_feedback" />
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F5F5F5" android:layout_marginHorizontal="16dp"/>
+<!--            <include-->
+<!--                android:id="@+id/item_edit"-->
+<!--                layout="@layout/item_profile_action" />-->
 
-            <include layout="@layout/item_profile_action" android:id="@+id/item_exit" />
+<!--            <View-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="1dp"-->
+<!--                android:layout_marginHorizontal="16dp"-->
+<!--                android:background="#F5F5F5" />-->
+
+            <include
+                android:id="@+id/item_logout"
+                layout="@layout/item_profile_action" />
 
         </LinearLayout>
     </androidx.cardview.widget.CardView>
@@ -72,13 +85,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
-        android:text="退出账号"
-        android:textColor="#F8C582"
-        android:textSize="18sp"
         android:backgroundTint="@color/yellow_beige"
-
         android:elevation="1dp"
         android:stateListAnimator="@null"
+        android:text="退出账号"
+
+        android:textColor="#F8C582"
+        android:textSize="18sp"
 
         app:layout_constraintTop_toBottomOf="@+id/selector" />
 

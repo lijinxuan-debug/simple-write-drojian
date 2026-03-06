@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/iv_avatar_user"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentEnd="true"
+        android:src="@drawable/img" />
+
+    <TextView
+        android:id="@+id/tv_message_user"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_toStartOf="@id/iv_avatar_user"
+        android:background="@drawable/shape_bubble_user"
+        android:elevation="1dp"
+        android:padding="12dp"
+        android:text="用户发送的消息"
+        android:textColor="#333333"
+        android:textSize="14sp" />
+</RelativeLayout>

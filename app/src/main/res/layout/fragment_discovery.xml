@@ -1,14 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FFFBF5"
     tools:context=".ui.discovery.DiscoveryFragment">
 
-    <!-- TODO: Update blank fragment layout -->
-    <TextView
+    <RelativeLayout
+        android:id="@+id/chat_header"
+        android:layout_width="match_parent"
+        android:layout_height="86dp"
+        android:background="#FFD54F"
+        android:paddingHorizontal="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="聊天"
+            android:textColor="#333333"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:text="@string/hello_blank_fragment" />
+        android:layout_above="@+id/input_area"
+        android:layout_below="@id/chat_header"
+        android:divider="@null"
+        android:padding="10dp" />
 
-</FrameLayout>
+    <!-- AI 回复显示区域 -->
+    <TextView
+        android:id="@+id/tv_ai_response"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:padding="16dp"
+        android:textSize="16sp"
+        android:textColor="#333333"
+        android:lineSpacingExtra="1.2dp" />
+
+    <!-- 正在思考状态指示器 -->
+    <TextView
+        android:id="@+id/tv_thinking"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="正在思考..."
+        android:textSize="14sp"
+        android:textColor="#999999"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/input_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="12dp"
+        android:background="@drawable/shape_input_border"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <EditText
+            android:id="@+id/et_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="请输入消息"
+            android:maxLines="3"
+            android:padding="8dp"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/btn_send"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:src="@android:drawable/ic_menu_send" />
+    </LinearLayout>
+
+</RelativeLayout>

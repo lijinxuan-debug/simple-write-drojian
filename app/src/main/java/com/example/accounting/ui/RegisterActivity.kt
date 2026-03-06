@@ -4,13 +4,17 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.input.InputManager
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -37,6 +41,7 @@ class RegisterActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        enableEdgeToEdge()
 
         // 之所以传Class对象是为了节省内存，如果存在则直接复用，不存在可反射创建实例
         userViewModel = ViewModelProvider(this)[UserViewModel::class.java]
@@ -52,10 +57,10 @@ class RegisterActivity : AppCompatActivity() {
 
         // 注册结果监听
         userViewModel.registerResult.observe(this) { result ->
-            result.onSuccess { user ->
+            result.onSuccess { userId ->
                 Toast.makeText(this,"登录成功", Toast.LENGTH_SHORT).show()
                 // 同时将当前用户持久化，保证下次自动登录即可
-                SpUtil.saveUserId(this,user.id)
+                SpUtil.saveUserId(this,userId)
                 // 登录成功直接跳转到主页
                 val intent = Intent(this, MainActivity::class.java)
                 startActivity(intent)
@@ -176,8 +181,13 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun registerValid() {
+
+        // 同时也需要隐藏软件盘
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(binding.registerLoginBtn.windowToken,0)
+
         // 失去所有焦点
-        binding.root.requestFocus()
+        currentFocus?.clearFocus()
 
         val email = binding.email.text.toString()
         val verify = binding.verificationCode.text.toString()

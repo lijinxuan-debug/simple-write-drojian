@@ -1,6 +1,7 @@
 package com.example.accounting.engine
 
 import android.content.Context
+import android.net.Uri
 import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
@@ -88,6 +89,13 @@ class GlideEngine private constructor() : ImageEngine {
     fun loadImage(context: Context, file: Int, imageView: ImageView) {
         Glide.with(context)
             .load(file)
+            .circleCrop()
+            .into(imageView)
+    }
+
+    fun loadImage(context: Context, uri: Uri, imageView: ImageView) {
+        Glide.with(context)
+            .load(uri)
             .circleCrop()
             .into(imageView)
     }

@@ -61,6 +61,63 @@ class HomeFragment : Fragment() {
             toggleMenu()
         }
 
+        // 下拉刷新
+        binding.refreshLayout.setOnRefreshListener { refreshLayout ->
+            val currentMonth = viewModel.billDateState.value.currentMonth
+            val currentYear = viewModel.billDateState.value.currentYear
+
+            var nextMonth = currentMonth + 1
+            var nextYear = currentYear
+
+            if (nextMonth > 12) {
+                nextMonth = 1
+                nextYear += 1
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                // 获取对应时间戳
+                val timestamp = getMonthTimestamp(nextYear, nextMonth)
+
+                val bool = viewModel.getFutureData(timestamp)
+                if (bool) {
+                    // 调用 ViewModel 改变日期
+                    viewModel.changeDate(nextYear, nextMonth)
+
+                    binding.tvHeaderYear.text = "${nextYear}年"
+                    binding.tvHeaderMonth.text = String.format("%02d月", nextMonth)
+                }
+                refreshLayout.finishRefresh(true)
+            }
+        }
+
+        // 上拉加载
+        binding.refreshLayout.setOnLoadMoreListener { refreshLayout ->
+            val currentMonth = viewModel.billDateState.value.currentMonth
+            val currentYear = viewModel.billDateState.value.currentYear
+
+            var prevMonth = currentMonth - 1
+            var prevYear = currentYear
+
+            if (prevMonth < 1) {
+                prevMonth = 12
+                prevYear -= 1
+            }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                // 获取对应时间戳
+                val timestamp = getMonthTimestamp(currentYear, currentMonth)
+
+                val bool = viewModel.getPastData(timestamp)
+                if (bool) {
+                    viewModel.changeDate(prevYear, prevMonth)
+
+                    binding.tvHeaderYear.text = "${prevYear}年"
+                    binding.tvHeaderMonth.text = String.format("%02d月", prevMonth)
+                }
+                refreshLayout.finishLoadMore(true)
+            }
+        }
+
         // 手动导入添加跳转
         binding.itemManuallyAddBtn.setOnClickListener {
             val intent = Intent(requireContext(), ManuallyActivity::class.java)
@@ -119,6 +176,21 @@ class HomeFragment : Fragment() {
             showMonthPicker()
         }
 
+    }
+
+    /**
+     * 根据年月生成时间戳
+     */
+    fun getMonthTimestamp(year: Int, month: Int): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.YEAR, year)
+        calendar.set(Calendar.MONTH, month - 1) // 注意：Calendar的月份从0开始
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 
     /**

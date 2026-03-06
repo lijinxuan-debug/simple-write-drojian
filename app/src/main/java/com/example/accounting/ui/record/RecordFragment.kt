@@ -65,7 +65,6 @@ class RecordFragment : Fragment() {
 
     companion object {
         private const val ARG_POSITION = "position"
-
         fun newInstance(position: Int): RecordFragment {
             val fragment = RecordFragment()
             val args = Bundle()
@@ -220,6 +219,11 @@ class RecordFragment : Fragment() {
             viewModel.updateKeyboardVisible(true)
             // 同时计算过程也要显现
             binding.hsvCalculation.visibility = View.VISIBLE
+
+            // 弹出键盘的同时还要收起软键盘才可以（需要设计类型转换）
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(binding.root.windowToken,0)
+
         }
 
         // 监听点击时间按钮逻辑
@@ -229,15 +233,21 @@ class RecordFragment : Fragment() {
 
         // 监听备注输入
         binding.llRemarkRow.setOnClickListener {
-            // 先隐藏计算器
-            viewModel.updateKeyboardVisible(false)
             // 聚焦
             binding.etRemark.requestFocus()
-            // 将光标移到末尾
-            binding.etRemark.setSelection(binding.etRemark.text.length)
             // 强制弹出软键盘
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(binding.etRemark, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        binding.etRemark.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                // 只要备注框拿到焦点，无论用户怎么点进来的，立刻收起自定义计算器
+                viewModel.updateKeyboardVisible(false)
+
+                // 将光标移到末尾
+                binding.etRemark.setSelection(binding.etRemark.text.length)
+            }
         }
 
         // 监听键盘关闭

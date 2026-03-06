@@ -1,6 +1,7 @@
 package com.example.accounting.utils
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
@@ -11,31 +12,31 @@ object FileUtil {
     private const val AVATAR_DIR = "avatars"
 
     // 保存用户图片
-    fun saveUserAvatar(context: Context, sourcePath: String?): String? {
-        if (sourcePath.isNullOrBlank()) return null
+    fun saveUserAvatar(context: Context, uri: Uri?): String? {
+        // 1. 判空：现在判断的是 Uri 对象是否为空
+        if (uri == null) return null
 
         try {
-            val sourceFile = File(sourcePath)
-            if (!sourceFile.exists()) return null
-
-            // 获取私有目录
+            // 准备目标目录 (AVATAR_DIR 是你的 "avatars" 常量)
             val folder = File(context.filesDir, AVATAR_DIR)
             if (!folder.exists()) {
-                folder.mkdirs() // 如果文件夹不存在则创建
+                folder.mkdirs()
             }
 
-            // 2. 生成唯一文件名：以时间戳命名，防止覆盖
+            // 2. 生成唯一文件名
             val fileName = "img_${System.currentTimeMillis()}.jpg"
             val destFile = File(folder, fileName)
 
-            // 3. 拷贝文件 (使用 Kotlin 扩展函数 copyTo)
-            sourceFile.inputStream().use { input ->
+            // 3. 【核心变化】使用 ContentResolver 打开输入流
+            // context.contentResolver 是访问 Uri 数据的唯一合法入口
+            context.contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(destFile).use { output ->
+                    // 依然是“搬砖”式拷贝
                     input.copyTo(output)
                 }
             }
 
-            return fileName // 存入数据库的是这个名字
+            return fileName
 
         } catch (e: Exception) {
             Log.e(TAG, "保存头像异常", e)
@@ -49,12 +50,13 @@ object FileUtil {
      */
     fun getAvatarFile(context: Context, fileName: String?): File? {
         if (fileName.isNullOrBlank()) return null
+        // 大嵌套，其实就是通过文件夹路径查找文件。
         val file = File(File(context.filesDir, AVATAR_DIR), fileName)
         return if (file.exists()) file else null
     }
 
     /**
-     * 将图片复制到私有目录
+     * 将图片复制到私有目录（一般是适用于账单大量图片存储使用）
      * @param originPaths 原始路径列表（相册路径）
      * @return 存储在私有目录后的新路径列表
      */

@@ -55,7 +55,7 @@ class RecordAdapter(
                 tvAccountInfo.text = "${record.paymentMethod} · ${record.timeStr}"
                 tvRemark.text = record.remark
 
-                // 图片显示 (建议后续按我说的优化 addView 问题)
+                // 图片显示
                 layoutImages.removeAllViews()
                 if (record.images.isNotEmpty()) {
                     layoutImages.visibility = View.VISIBLE

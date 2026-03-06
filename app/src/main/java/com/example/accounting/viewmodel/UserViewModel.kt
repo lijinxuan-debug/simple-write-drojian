@@ -7,8 +7,10 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.accounting.data.database.AppDatabase
 import com.example.accounting.data.model.User
+import com.example.accounting.utils.SpUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UserViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -16,7 +18,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     private val userDAO = AppDatabase.getDatabase(application).userDao()
 
     // 注册状态
-    val registerResult = MutableLiveData<Result<User>>()
+    val registerResult = MutableLiveData<Result<Long>>()
 
     // 登录状态
     val loginResult = MutableLiveData<Result<User>>()
@@ -44,10 +46,9 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                     )
 
                     // 插入数据库
-                    userDAO.registerUser(newUser)
-
+                    val userId = userDAO.registerUser(newUser)
                     // 插入成功的话则返回用户对象
-                    registerResult.postValue(Result.success(newUser))
+                    registerResult.postValue(Result.success(userId))
                 }
             } catch (e : Exception) {
                 registerResult.postValue(Result.failure(e))
@@ -58,13 +59,32 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 通过Id查询用户
      */
-    fun getUserInfo(id: Long) {
+    fun getUserInfo() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val user = userDAO.getUserById(id)
+                val user = userDAO.getUserById(SpUtil.getUserId(getApplication()))
                 currentUser.postValue(user)
             } catch (e: Exception) {
                 Log.e("获取用户数据异常", e.message.toString())
+            }
+        }
+    }
+
+    /**
+     * 存储用户头像路径到数据库
+     */
+    suspend fun saveUserAvatar(avatar: String): Boolean {
+        // 切换到 IO 线程并【等待】其结果返回
+        return withContext(Dispatchers.IO) {
+            try {
+                val userId = SpUtil.getUserId(getApplication())
+                val rowsAffected = userDAO.updateAvatarById(avatar, userId)
+
+                // 如果受影响行数 > 0，说明更新成功
+                rowsAffected > 0
+            } catch (e: Exception) {
+                Log.e("存储失败", e.message.toString())
+                false // 发生异常返回 false
             }
         }
     }

@@ -1,8 +1,10 @@
 package com.example.accounting.ui
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +22,8 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
 
     private lateinit var userViewModel: UserViewModel
+
+    private var mToast: Toast ?= null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,6 +73,21 @@ class LoginActivity : AppCompatActivity() {
             startActivity(loginToForget)
         }
 
+        // 对输入框和密码进行输入监听，以便消除提示
+        binding.email.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.emailLayout.error = null
+                binding.emailLayout.isErrorEnabled = false
+            }
+        }
+
+        binding.password.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.passwordLayout.error = null
+                binding.passwordLayout.isErrorEnabled = false
+            }
+        }
+
         // 登录按钮进行监听
         binding.login.setOnClickListener {
             login()
@@ -79,11 +98,33 @@ class LoginActivity : AppCompatActivity() {
         val email = binding.email.text.toString()
         val password = binding.password.text.toString()
 
+        // 失去焦点
+        currentFocus?.clearFocus()
+
+        // 强制收起软件盘
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(binding.login.windowToken,0)
+
         if (!"^[a-z0-9.]{6,30}@gmail.com$".toRegex().matches(email)) {
             binding.emailLayout.error = "请输入有效的 Gmail"
             return
+        } else if (password.isEmpty()) {
+            binding.passwordLayout.error = "密码不可为空"
+            return
         }
 
-        userViewModel.login(email,password)
+        if (binding.protocolCheckbox.isChecked) {
+            userViewModel.login(email,password)
+        } else {
+            showToast("请先同意用户协议")
+        }
+
+    }
+
+    private fun showToast(text: String) {
+        mToast?.cancel()
+
+        mToast = Toast.makeText(this,text, Toast.LENGTH_SHORT)
+        mToast?.show()
     }
 }

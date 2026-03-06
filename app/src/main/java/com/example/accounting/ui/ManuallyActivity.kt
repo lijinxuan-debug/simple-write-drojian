@@ -10,6 +10,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.distinctUntilChanged
+import androidx.lifecycle.lifecycleScope
 import com.example.accounting.R
 import com.example.accounting.adapter.RecordPagerAdapter
 import com.example.accounting.data.model.Record
@@ -22,6 +23,8 @@ import com.example.accounting.utils.SpUtil
 import com.example.accounting.viewmodel.BillViewModel
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,6 +48,7 @@ class ManuallyActivity : AppCompatActivity() {
         binding = ActivityManuallyBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // 观察删除结果
         viewModel.billDeleteResult.observe(this) { result ->
             result.onSuccess {
                 Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
@@ -72,7 +76,8 @@ class ManuallyActivity : AppCompatActivity() {
 
         TabLayoutMediator(binding.topTabLayout, binding.mainViewPager) { tab, position ->
             tab.text =
-                if (position == 0) getString(R.string.expenditure) else getString(R.string.revenue)
+                if (position == 0) getString(R.string.expenditure)
+                else getString(R.string.revenue)
         }.attach()
 
         // 监听返回按钮
@@ -130,8 +135,10 @@ class ManuallyActivity : AppCompatActivity() {
 
     private fun switchEdit(record: Record) {
         viewModel.updateAmount(record.amount)
+        // 锁定viewPager2
+        binding.mainViewPager.isUserInputEnabled = false
         // 更换到支出、收入页面
-        binding.mainViewPager.currentItem = record.type
+        binding.mainViewPager.setCurrentItem(record.type,false)
         // 先将头部更换账单给隐藏掉
         binding.topTabLayout.visibility = View.GONE
         // 同时将当前的账单id传递过去
@@ -224,15 +231,15 @@ class ManuallyActivity : AppCompatActivity() {
 //    |----------------
 //""".trimMargin()
 //        )
-
         // 6. 调用 ViewModel 的插入方法
-        viewModel.insertRecord(record)
+        lifecycleScope.launch {
+            viewModel.insertRecord(record)
 
-        // 同时将id进行清零
-        viewModel.id = 0L
+            // 同时将id进行清零
+            viewModel.id = 0L
 
-        // 7. 保存成功后关闭页面且跳转到主页
-        finish()
+            finish()
+        }
     }
 
     // 辅助类用于解构赋值

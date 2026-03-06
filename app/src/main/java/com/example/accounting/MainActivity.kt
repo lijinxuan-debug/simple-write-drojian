@@ -1,6 +1,7 @@
 package com.example.accounting
 
 import android.os.Bundle
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.example.accounting.databinding.ActivityMainBinding
@@ -39,6 +40,11 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
+    }
+
+    // 在 MainActivity 中
+    fun showGlobalLoading(show: Boolean) {
+        binding.loadingMask.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun switchFragment(tag: String) {

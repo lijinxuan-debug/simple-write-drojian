@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.lang.Exception
 import java.text.DecimalFormat
 import java.time.LocalDate
@@ -29,8 +30,10 @@ import java.time.ZoneId
 class BillViewModel(application: Application) : AndroidViewModel(application) {
     // 获取recordDao实例
     private val recordDao = AppDatabase.getDatabase(application).recordDao()
+
     // 当前编辑的账单ID（默认为0）
-    var id : Long = 0L
+    var id: Long = 0L
+
     // 计算的结果，即金额数据
     val amount = MutableLiveData<String>("0.00")
 
@@ -60,7 +63,8 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- 收入部分 ---
     val incomeDate = MutableLiveData(System.currentTimeMillis())
-    val incomeCategoryItem = MutableLiveData(CategoryAndAccountData.incomeCategories[0].items[0]) // 注意这里应该是 incomeCategories
+    val incomeCategoryItem =
+        MutableLiveData(CategoryAndAccountData.incomeCategories[0].items[0]) // 注意这里应该是 incomeCategories
     val incomeAccount = MutableLiveData(CategoryAndAccountData.accountGroups[0].items[0])
     val incomeRemark = MutableLiveData("")
     val incomeImage = MutableLiveData<List<String>>(emptyList())
@@ -71,13 +75,18 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     private val formater = DecimalFormat("#,##0.00")
 
-    private val billDateState = MutableStateFlow(BillDateState(LocalDate.now().year, LocalDate.now().monthValue))
+    val billDateState =
+        MutableStateFlow(BillDateState(LocalDate.now().year, LocalDate.now().monthValue))
 
     // 1. 先定义一个内部私有的原始流，它是所有数据的源头
     @OptIn(ExperimentalCoroutinesApi::class)
     val rawRecordsFlow: Flow<List<Record>> = billDateState.flatMapLatest { state ->
-        val monthRange = getMonthRange(state.currentYear,state.currentMonth)
-        recordDao.selectRecordsByMonth(SpUtil.getUserId(application), monthRange.first, monthRange.second)
+        val monthRange = getMonthRange(state.currentYear, state.currentMonth)
+        recordDao.selectRecordsByMonth(
+            SpUtil.getUserId(application),
+            monthRange.first,
+            monthRange.second
+        )
     }.distinctUntilChanged() // 只有当数据库内容真正改变时（这里特指在时间范围的数据，虽然会执行查询，但是他会拦截，防止下游UI进行不必要的刷新）才触发下游
 
     // 2. 专门给 RecyclerView 使用的流（带 Header）
@@ -109,7 +118,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun changeDate(year: Int, month: Int) {
-        billDateState.value = BillDateState(year,month)
+        billDateState.value = BillDateState(year, month)
     }
 
     // 更新金额的方法
@@ -159,16 +168,16 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun getMonthRange(year: Int, month: Int): Pair<Long, Long> {
-        val start = LocalDate.of(year,month,1)
+        val start = LocalDate.of(year, month, 1)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant().toEpochMilli()
 
-        val end = LocalDate.of(year,month,1)
+        val end = LocalDate.of(year, month, 1)
             .plusMonths(1)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant().toEpochMilli()
 
-        return Pair(start,end)
+        return Pair(start, end)
     }
 
     private fun getYearRange(year: Int): Pair<Long, Long> {
@@ -203,29 +212,45 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
 
     // 独立的切换方法
     fun changeStatsDate(year: Int, month: Int, mode: Int) {
-        statesState.value = StatesState(mode,year,month)
+        statesState.value = StatesState(mode, year, month)
     }
 
     // 暴露给 Fragment 的时间范围流
-    val timeRangeFlow: Flow<Pair<Long, Long>?> = recordDao.getMinTimestampFlow(SpUtil.getUserId(application))
-        .combine(recordDao.getMaxTimestampFlow(SpUtil.getUserId(application))) { min, max ->
-            if (min != null && max != null) Pair(min, max) else null
-        }
-        .distinctUntilChanged() // 只有时间戳真正变了（比如删了最早的记录），才会发新值
+    val timeRangeFlow: Flow<Pair<Long, Long>?> =
+        recordDao.getMinTimestampFlow(SpUtil.getUserId(application))
+            .combine(recordDao.getMaxTimestampFlow(SpUtil.getUserId(application))) { min, max ->
+                if (min != null && max != null) Pair(min, max) else null
+            }
+            .distinctUntilChanged() // 只有时间戳真正变了（比如删了最早的记录），才会发新值
 
     /**
      * 编辑完将账单保存到room数据库
      */
-    fun insertRecord(record: Record) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                recordDao.insertRecord(record)
-                billSaveResult.postValue(Result.success("账单保存成功"))
-            } catch (e: Exception) {
-                Log.e("保存账单出现错误",e.message.toString())
-                billSaveResult.postValue(Result.failure(Exception("保存账单错误")))
-            }
+    suspend fun insertRecord(record: Record): Boolean = withContext(Dispatchers.IO) {
+        try {
+            recordDao.insertRecord(record)
+            true // 这里的 true 会作为 withContext 的结果返回
+        } catch (e: Exception) {
+            Log.e("DB_ERROR", e.message.toString())
+            false
         }
+    }
+
+    suspend fun getAllRecord(id: Long): List<Record> {
+        return try {
+            recordDao.getAllRecords(id)
+        } catch (e: Exception) {
+            Log.e("获取账单出现错误", e.message.toString())
+            emptyList()
+        }
+    }
+
+    suspend fun getFutureData(timestamp: Long): Boolean {
+        return recordDao.hasFutureData(timestamp, SpUtil.getUserId(getApplication()))
+    }
+
+    suspend fun getPastData(timestamp: Long): Boolean {
+        return recordDao.hasPastData(timestamp, SpUtil.getUserId(getApplication()))
     }
 
     /**
@@ -237,7 +262,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
                 recordDao.deleteRecord(recordId)
                 billDeleteResult.postValue(Result.success("账单已删除"))
             } catch (e: Exception) {
-                Log.e("删除账单出现错误",e.message.toString())
+                Log.e("删除账单出现错误", e.message.toString())
                 billDeleteResult.postValue(Result.failure(Exception("账单无法删除")))
             }
         }

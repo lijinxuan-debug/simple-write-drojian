@@ -36,29 +36,28 @@ object CategoryAndAccountData {
         )),
         CategoryGroup(4, "固定资产", listOf(
             CategoryItem(401, "固定资产", "办公设备", R.drawable.ic_device),
-//            CategoryItem(402, "固定资产", "购车费", R.drawable.ic_buy_car),
-//            CategoryItem(403, "固定资产", "房产", R.drawable.ic_house)
+            CategoryItem(402, "固定资产", "购车费", R.drawable.ic_buy_car),
+            CategoryItem(403, "固定资产", "房产", R.drawable.ic_house)
         )),
-//        CategoryGroup(5, "财务费用", listOf(
-//            CategoryItem(501, "财务费用", "做账报税", R.drawable.ic_tax_service),
-//            CategoryItem(502, "财务费用", "税费", R.drawable.ic_tax),
-//            CategoryItem(503, "财务费用", "发票", R.drawable.ic_invoice)
-//        )),
-//        CategoryGroup(6, "推广费用", listOf(
-//            CategoryItem(601, "推广费用", "广告费用", R.drawable.ic_ad_cost),
-//            CategoryItem(602, "推广费用", "平台推广", R.drawable.ic_platform),
-//            CategoryItem(603, "推广费用", "推广活动", R.drawable.ic_activity),
-//            CategoryItem(604, "推广费用", "广告费", R.drawable.ic_ad)
-//        )),
-//        CategoryGroup(7, "股东支出", listOf(
-//            CategoryItem(701, "股东支出", "股东分红", R.drawable.ic_dividend),
-//            CategoryItem(702, "股东支出", "股东福利", R.drawable.ic_shareholder_welfare)
-//        )),
-//        CategoryGroup(8, "其他杂项", listOf(
-//            CategoryItem(801, "其他杂项", "烂账损失", R.drawable.ic_bad_debt),
-//            CategoryItem(802, "其他杂项", "赔偿罚款", R.drawable.ic_fine),
-//            CategoryItem(803, "其他杂项", "其他支出", R.drawable.ic_more_expense)
-//        ))
+        CategoryGroup(5, "财务费用", listOf(
+            CategoryItem(501, "财务费用", "做账报税", R.drawable.ic_tax_service),
+            CategoryItem(502, "财务费用", "税费", R.drawable.ic_tax),
+            CategoryItem(503, "财务费用", "发票", R.drawable.ic_invoice)
+        )),
+        CategoryGroup(6, "推广费用", listOf(
+            CategoryItem(601, "推广费用", "广告费用", R.drawable.ic_ad_cost),
+            CategoryItem(602, "推广费用", "平台推广", R.drawable.ic_platform),
+            CategoryItem(603, "推广费用", "推广活动", R.drawable.ic_activity),
+        )),
+        CategoryGroup(7, "股东支出", listOf(
+            CategoryItem(701, "股东支出", "股东分红", R.drawable.ic_dividend),
+            CategoryItem(702, "股东支出", "股东福利", R.drawable.ic_shareholder_welfare)
+        )),
+        CategoryGroup(8, "其他杂项", listOf(
+            CategoryItem(801, "其他杂项", "烂账损失", R.drawable.ic_bad_debt),
+            CategoryItem(802, "其他杂项", "赔偿罚款", R.drawable.ic_fine),
+            CategoryItem(803, "其他杂项", "其他支出", R.drawable.ic_more_expense)
+        ))
     )
 
     // 收入类型
@@ -93,22 +92,16 @@ object CategoryAndAccountData {
                 AccountItem(101, "现金账户", "现金账户", R.drawable.ic_cash)
             )
         ),
-//        AccountGroup(2, "储蓄账户", listOf(
-//            AccountItem(201, "储蓄账户", "银行卡", R.drawable.ic_bank_card)
-//        )),
-//        AccountGroup(3, "虚拟账户", listOf(
-//            AccountItem(301, "虚拟账户", "支付宝", R.drawable.ic_alipay),
-//            AccountItem(302, "虚拟账户", "微信钱包", R.drawable.ic_wechat_pay)
-//        )),
-//        AccountGroup(4, "债权账户", listOf(
-//            AccountItem(401, "债权账户", "客户应收款", R.drawable.ic_receivable)
-//        )),
-//        AccountGroup(5, "信用账户", listOf(
-//            AccountItem(501, "信用账户", "信用卡", R.drawable.ic_credit_card)
-//        )),
-//        AccountGroup(6, "负债账户", listOf(
-//            AccountItem(601, "负债账户", "供应商应付款", R.drawable.ic_payable)
-//        ))
+        AccountGroup(2, "储蓄账户", listOf(
+            AccountItem(201, "储蓄账户", "银行卡", R.drawable.ic_bank_card)
+        )),
+        AccountGroup(3, "虚拟账户", listOf(
+            AccountItem(301, "虚拟账户", "支付宝", R.drawable.ic_alipay),
+            AccountItem(302, "虚拟账户", "微信钱包", R.drawable.ic_wechat_pay)
+        )),
+        AccountGroup(4, "信用账户", listOf(
+            AccountItem(401, "信用账户", "信用卡", R.drawable.ic_credit_card)
+        )),
     )
 
     // 懒加载建立map

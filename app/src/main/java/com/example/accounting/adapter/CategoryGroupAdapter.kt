@@ -30,6 +30,9 @@ class CategoryGroupAdapter(
             // 初始化子 RecyclerView
             rvSubItems.layoutManager = GridLayoutManager(root.context, 4)
             rvSubItems.adapter = CategoryItemAdapter(group.items, onItemSelected)
+
+            // 让内部recyclerview不再参与嵌套滚动
+            rvSubItems.isNestedScrollingEnabled = false
         }
     }
 
