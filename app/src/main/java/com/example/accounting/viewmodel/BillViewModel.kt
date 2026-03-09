@@ -208,7 +208,7 @@ class BillViewModel(application: Application) : AndroidViewModel(application) {
         else getYearRange(state.year)
 
         recordDao.selectRecordsByMonth(SpUtil.getUserId(application), range.first, range.second)
-    }.distinctUntilChanged()
+    }
 
     // 独立的切换方法
     fun changeStatsDate(year: Int, month: Int, mode: Int) {

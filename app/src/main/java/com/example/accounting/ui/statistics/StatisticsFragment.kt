@@ -26,6 +26,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import androidx.core.graphics.toColorInt
 
 class StatisticsFragment : Fragment() {
     private var _binding: FragmentStatisticsBinding? = null
@@ -539,9 +540,9 @@ class StatisticsFragment : Fragment() {
             "#FF4081" else "#4CAF50"
 
         val dataSet = LineDataSet(entries, label).apply{
-            color = Color.parseColor(themeColor)
+            color = themeColor.toColorInt()
 
-            setCircleColor(Color.parseColor(themeColor))
+            setCircleColor(themeColor.toColorInt())
             lineWidth = 2.5f
             circleRadius = 4f
             mode = LineDataSet.Mode.LINEAR
@@ -567,7 +568,7 @@ class StatisticsFragment : Fragment() {
             }
         }
 
-        binding.lineChart.animateX(800,
+        binding.lineChart.animateX(200,
             Easing.EaseInOutQuart)
     }
 

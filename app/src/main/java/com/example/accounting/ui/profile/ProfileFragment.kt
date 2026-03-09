@@ -98,7 +98,7 @@ class ProfileFragment : Fragment() {
             if (user != null) {
                 if (user.avatar == "default_avatar") {
                     GlideEngine.createGlideEngine()
-                        .loadImage(requireContext(), R.drawable.img, binding.ivAvatar)
+                        .loadImage(requireContext(), R.drawable.ljx, binding.ivAvatar)
                 } else {
                     // 那就是已经存储了图片，直接获取即可
                     val avatarFile = FileUtil.getAvatarFile(requireContext(), user.avatar)
@@ -171,10 +171,10 @@ class ProfileFragment : Fragment() {
             // 先检查权限
             val permissionsToCheck = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // Android 13 及以上使用 READ_MEDIA_IMAGES
-                arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+                arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.CAMERA)
             } else {
                 // Android 12 及以下使用 READ_EXTERNAL_STORAGE
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CAMERA)
             }
 
             // 检查是否已经有权限

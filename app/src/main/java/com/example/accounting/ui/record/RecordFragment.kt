@@ -1,13 +1,21 @@
 package com.example.accounting.ui.record
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -47,6 +55,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Calendar
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 class RecordFragment : Fragment() {
 
@@ -62,6 +72,34 @@ class RecordFragment : Fragment() {
     private var selectedDateMillis: Long = System.currentTimeMillis()
 
     private var imageSelectList = ArrayList<LocalMedia>()
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // 检查所有权限是否都被授予
+        val allGranted = permissions.values.all { it }
+
+        if (allGranted) {
+            // 权限授予成功，打开相册
+            openGallery()
+        } else {
+            // 权限被拒绝，检查是否彻底禁止
+            val isPermanentlyDenied = permissions.entries.any { (permission, _) ->
+                !ActivityCompat.shouldShowRequestPermissionRationale(
+                    requireActivity(),
+                    permission
+                )
+            }
+
+            if (isPermanentlyDenied) {
+                // 彻底禁止，显示引导弹窗
+                showPermissionDeniedDialog()
+            } else {
+                // 普通拒绝，提示用户
+                Toast.makeText(requireContext(), "需要权限才能选择图片", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     companion object {
         private const val ARG_POSITION = "position"
@@ -394,17 +432,62 @@ class RecordFragment : Fragment() {
 
         // 在图库里面选择图片
         dialogBinding.llAlbum.setOnClickListener {
-            PictureSelector.create(this)
-                .openGallery(SelectMimeType.ofImage())
-                .setImageEngine(GlideEngine.createGlideEngine())
-                .setSelectionMode(SelectModeConfig.MULTIPLE)
-                .setMinSelectNum(1)
-                .setMaxSelectNum(9)
-                .forResult(object : OnResultCallbackListener<LocalMedia> {
-                    override fun onResult(result: ArrayList<LocalMedia>) {
-                        // 如果没有图片直接返回
-                        if (result.isEmpty()) return
+            // 点击这个之后先检查权限（如果是android13之后的则需要读取照片权限，而android12之前的则需要读取外部权限）
+            val permissionsToCheck = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.CAMERA)
+            } else {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CAMERA)
+            }
 
+            // 在检查是否已经有了权限
+            val allGranted = permissionsToCheck.all {
+                ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    it
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+
+            if (allGranted) {
+                // 打开相册
+                openGallery()
+            } else {
+                // 请求权限
+                permissionLauncher.launch(permissionsToCheck)
+            }
+
+            bottomSheetDialog.dismiss()
+        }
+
+        // 拍照逻辑
+        dialogBinding.llTakePhoto.setOnClickListener {
+            // 也是先检查权限
+            val permissionToCheck = arrayOf(Manifest.permission.CAMERA)
+
+            // 检查权限是否同意
+            val allGranted = permissionToCheck.all {
+                ContextCompat.checkSelfPermission(requireContext(),it) == PackageManager.PERMISSION_GRANTED
+            }
+
+            if (allGranted) {
+                openCamera()
+            } else {
+                permissionLauncher.launch(permissionToCheck)
+            }
+            bottomSheetDialog.dismiss()
+        }
+
+        // 5. 显示弹窗 (系统会自动执行从底部升起的动画，并让背景变灰)
+        bottomSheetDialog.show()
+    }
+
+    private fun openCamera() {
+        PictureSelector.create(this)
+            .openCamera(SelectMimeType.ofImage()) // 直接打开相机模式
+            .setCameraImageFormat(PictureMimeType.JPEG) // 设置拍照图片格式
+            .forResult(object : OnResultCallbackListener<LocalMedia> {
+                override fun onResult(result: ArrayList<LocalMedia>) {
+                    // 下面的逻辑和图库选择图片则一致
+                    if (result.isNotEmpty()) {
                         imageSelectList.clear()
                         imageSelectList.addAll(result)
 
@@ -413,76 +496,91 @@ class RecordFragment : Fragment() {
                             media.realPath ?: media.path
                         }
 
+                        val firstPath = pathList[0]
+
                         if (pageType == 0) {
                             viewModel.expenseImage.value = pathList
                         } else {
                             viewModel.incomeImage.value = pathList
                         }
 
-                        // 拿第一张图的真实路径
-                        val firstPath = pathList[0]
-
                         binding.llCameraDefault.visibility = View.GONE
                         binding.ivPreview.visibility = View.VISIBLE
 
-                        // 使用glide加载缩略图
+                        // 用 Glide 加载高清原图
                         Glide.with(binding.ivPreview)
                             .load(firstPath)
                             .transform(CenterCrop(), RoundedCorners(15))
                             .into(binding.ivPreview)
+                    }
+                }
 
+                override fun onCancel() {}
+            })
+    }
+
+    private fun showPermissionDeniedDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("功能受限")
+            .setMessage("由于你已彻底禁用权限，请前往设置手动开启。")
+            .setPositiveButton("去设置") { _, _ ->
+                // 跳转到系统设置页面
+                val intent = Intent().apply {
+                    action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    data = Uri.fromParts("package", requireContext().packageName, null)
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("取消") { _, _ ->
+                // 取消操作，不做任何操作
+            }
+            .show()
+    }
+
+    private fun openGallery() {
+        PictureSelector.create(this)
+            .openGallery(SelectMimeType.ofImage())
+            .setImageEngine(GlideEngine.createGlideEngine())
+            .setSelectionMode(SelectModeConfig.MULTIPLE)
+            .setMinSelectNum(1)
+            .setMaxSelectNum(9)
+            .forResult(object : OnResultCallbackListener<LocalMedia> {
+                override fun onResult(result: ArrayList<LocalMedia>) {
+                    // 先检查result是否为空
+                    if (result.isEmpty()) return
+
+                    imageSelectList.clear()
+                    imageSelectList.addAll(result)
+
+                    val pathList = result.map { media ->
+                        // 优先真实路径，找不到则普通路径即可
+                        media.realPath ?: media.path
                     }
 
-                    override fun onCancel() {
-                        // 取消选择
-                    }
-                })
-            bottomSheetDialog.dismiss()
-        }
-
-        // 拍照逻辑
-        dialogBinding.llTakePhoto.setOnClickListener {
-            PictureSelector.create(this)
-                .openCamera(SelectMimeType.ofImage()) // 直接打开相机模式
-                .setCameraImageFormat(PictureMimeType.JPEG) // 设置拍照图片格式
-                .forResult(object : OnResultCallbackListener<LocalMedia> {
-                    override fun onResult(result: ArrayList<LocalMedia>) {
-                        // 下面的逻辑和图库选择图片则一致
-                        if (result.isNotEmpty()) {
-                            imageSelectList.clear()
-                            imageSelectList.addAll(result)
-
-                            val pathList = result.map { media ->
-                                // 优先真实路径，找不到则普通路径即可
-                                media.realPath ?: media.path
-                            }
-
-                            val firstPath = pathList[0]
-
-                            if (pageType == 0) {
-                                viewModel.expenseImage.value = pathList
-                            } else {
-                                viewModel.incomeImage.value = pathList
-                            }
-
-                            binding.llCameraDefault.visibility = View.GONE
-                            binding.ivPreview.visibility = View.VISIBLE
-
-                            // 用 Glide 加载高清原图
-                            Glide.with(binding.ivPreview)
-                                .load(firstPath)
-                                .transform(CenterCrop(), RoundedCorners(15))
-                                .into(binding.ivPreview)
-                        }
+                    if (pageType == 0) {
+                        viewModel.expenseImage.value = pathList
+                    } else {
+                        viewModel.incomeImage.value = pathList
                     }
 
-                    override fun onCancel() {}
-                })
-            bottomSheetDialog.dismiss()
-        }
+                    // 拿第一张图的真实路径
+                    val firstPath = pathList[0]
 
-        // 5. 显示弹窗 (系统会自动执行从底部升起的动画，并让背景变灰)
-        bottomSheetDialog.show()
+                    binding.llCameraDefault.visibility = View.GONE
+                    binding.ivPreview.visibility = View.VISIBLE
+
+                    // 使用glide加载缩略图
+                    Glide.with(binding.ivPreview)
+                        .load(firstPath)
+                        .transform(CenterCrop(), RoundedCorners(15))
+                        .into(binding.ivPreview)
+
+                }
+
+                override fun onCancel() {
+                    // 取消操作
+                }
+            })
     }
 
     /**
