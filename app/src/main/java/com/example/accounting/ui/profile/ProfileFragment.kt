@@ -120,10 +120,8 @@ class ProfileFragment : Fragment() {
             root.setOnClickListener {
                 viewLifecycleOwner.lifecycleScope.launch {
                     try {
-                        (activity as? MainActivity)?.showGlobalLoading(true)
                         root.isEnabled = false
 
-                        ToastUtils.show(requireContext(), "正在导出，请稍等")
                         val allRecord =
                             billViewMOdel.getAllRecord(SpUtil.getUserId(requireContext()))
                         // 账单为空
@@ -131,6 +129,10 @@ class ProfileFragment : Fragment() {
                             ToastUtils.show(requireContext(), "账单为空，无法导出")
                             return@launch
                         }
+
+                        (activity as? MainActivity)?.showGlobalLoading(true)
+                        ToastUtils.show(requireContext(), "正在导出，请稍等")
+
                         val excelFile = generateExcelFile(allRecord)
 
                         if (excelFile != null && excelFile.exists()) {

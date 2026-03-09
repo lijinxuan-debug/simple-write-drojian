@@ -114,7 +114,7 @@ class HomeFragment : Fragment() {
                     binding.tvHeaderYear.text = "${prevYear}年"
                     binding.tvHeaderMonth.text = String.format("%02d月", prevMonth)
                 }
-                refreshLayout.finishLoadMore(true)
+                refreshLayout.finishLoadMore(0,true,false)
             }
         }
 
